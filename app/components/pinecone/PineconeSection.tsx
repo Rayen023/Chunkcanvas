@@ -16,6 +16,8 @@ export default function PineconeSection() {
   const pineconeEnvKey = useAppStore((s) => s.pineconeEnvKey);
   const pineconeIndexName = useAppStore((s) => s.pineconeIndexName);
   const pineconeIndexes = useAppStore((s) => s.pineconeIndexes);
+  const pineconeNamespace = useAppStore((s) => s.pineconeNamespace);
+  const pineconeNamespaces = useAppStore((s) => s.pineconeNamespaces);
   const isUploading = useAppStore((s) => s.isUploadingPinecone);
   const pineconeError = useAppStore((s) => s.pineconeError);
   const pineconeSuccess = useAppStore((s) => s.pineconeSuccess);
@@ -25,6 +27,8 @@ export default function PineconeSection() {
   const setPineconeEnvKey = useAppStore((s) => s.setPineconeEnvKey);
   const setPineconeIndexName = useAppStore((s) => s.setPineconeIndexName);
   const setPineconeIndexes = useAppStore((s) => s.setPineconeIndexes);
+  const setPineconeNamespace = useAppStore((s) => s.setPineconeNamespace);
+  const setPineconeNamespaces = useAppStore((s) => s.setPineconeNamespaces);
   const setIsUploading = useAppStore((s) => s.setIsUploadingPinecone);
   const setPineconeError = useAppStore((s) => s.setPineconeError);
   const setPineconeSuccess = useAppStore((s) => s.setPineconeSuccess);
@@ -37,6 +41,9 @@ export default function PineconeSection() {
   const [newIdxMetric, setNewIdxMetric] = useState<"cosine" | "euclidean" | "dotproduct">("cosine");
   const [creating, setCreating] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Namespace creation state
+  const [isCreatingNamespace, setIsCreatingNamespace] = useState(false);
 
   // Auto-fill env key
   useEffect(() => {
@@ -67,6 +74,37 @@ export default function PineconeSection() {
   useEffect(() => {
     fetchIndexes();
   }, [fetchIndexes]);
+
+  // Fetch namespaces when index is set
+  useEffect(() => {
+    if (!pineconeApiKey || !pineconeIndexName) {
+      setPineconeNamespaces([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const { listNamespaces } = await import("@/app/lib/pinecone-client");
+        const namespaces = await listNamespaces(pineconeApiKey, pineconeIndexName);
+        if (!active) return;
+        setPineconeNamespaces(namespaces);
+        // Default logic: if we have namespaces, pick first one (often just "")
+        // Otherwise prompt to create.
+        if (namespaces.length > 0 && !pineconeNamespace && !isCreatingNamespace) {
+           // If we have an empty string namespace (default), pick it
+           if (namespaces.includes("")) setPineconeNamespace("");
+           else setPineconeNamespace(namespaces[0]);
+           setIsCreatingNamespace(false);
+        } else if (namespaces.length === 0) {
+           setIsCreatingNamespace(true);
+           setPineconeNamespace("");
+        }
+      } catch (err) {
+        console.error("Failed to list namespaces:", err);
+      }
+    })();
+    return () => { active = false; };
+  }, [pineconeApiKey, pineconeIndexName, setPineconeNamespaces, setPineconeNamespace, isCreatingNamespace, pineconeNamespace]);
 
   // Create new index
   const handleCreateIndex = useCallback(async () => {
@@ -114,10 +152,11 @@ export default function PineconeSection() {
         editedChunks,
         parsedFilename,
         (pct) => setUploadProgress(pct),
-        hasEmbeddings ? embeddingsData : null // Pass existing embeddings if available
+        hasEmbeddings ? embeddingsData : null, // Pass existing embeddings if available
+        pineconeNamespace // Pass namespace
       );
       setPineconeSuccess(
-        `Chunks successfully uploaded to index: ${pineconeIndexName}.`,
+        `Chunks successfully uploaded to index "${pineconeIndexName}" (namespace: "${pineconeNamespace || "default"}").`,
       );
       // Clear state after successful upload
       setTimeout(() => resetDownstream(1), 2000);
@@ -343,6 +382,98 @@ export default function PineconeSection() {
                 </details>
              </div>
           </div>
+
+          {/* Namespace Selection */}
+          {pineconeIndexName && (
+            <div>
+              <label className="block text-sm font-medium text-gunmetal mb-2">
+                Select Namespace
+              </label>
+              <div className="space-y-1.5">
+                {pineconeNamespaces.map((ns) => {
+                  const isSelected = !isCreatingNamespace && pineconeNamespace === ns;
+                  const displayNs = ns === "" ? "(Default)" : ns;
+                  return (
+                    <button
+                      key={ns}
+                      type="button"
+                      onClick={() => {
+                        setPineconeNamespace(ns);
+                        setIsCreatingNamespace(false);
+                      }}
+                      className={`
+                        w-full text-left rounded-lg border px-3.5 py-2 transition-all duration-150 cursor-pointer flex items-center gap-2
+                        ${isSelected
+                          ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                          : "border-silver-light bg-white hover:border-sandy/50 hover:bg-sandy/4"
+                        }
+                      `}
+                    >
+                      <span
+                        className={`
+                          flex-shrink-0 h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors
+                          ${isSelected ? "border-sandy" : "border-silver"}
+                        `}
+                      >
+                        {isSelected && (
+                          <span className="h-2 w-2 rounded-full bg-sandy" />
+                        )}
+                      </span>
+                      <span className={`text-sm font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}>
+                        {displayNs}
+                      </span>
+                    </button>
+                  );
+                })}
+                
+                {/* Create New Namespace Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingNamespace(true);
+                    setPineconeNamespace(""); // Reset to empty for typing
+                  }}
+                  className={`
+                    w-full text-left rounded-lg border px-3.5 py-2 transition-all duration-150 cursor-pointer flex items-center gap-2
+                    ${isCreatingNamespace
+                      ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                      : "border-silver-light bg-white hover:border-sandy/50 hover:bg-sandy/4"
+                    }
+                  `}
+                >
+                  <span
+                    className={`
+                      flex-shrink-0 h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors
+                      ${isCreatingNamespace ? "border-sandy" : "border-silver"}
+                    `}
+                  >
+                    {isCreatingNamespace && (
+                      <span className="h-2 w-2 rounded-full bg-sandy" />
+                    )}
+                  </span>
+                  <span className={`text-sm font-medium ${isCreatingNamespace ? "text-gunmetal" : "text-gunmetal-light"}`}>
+                    Create / Enter New Namespace
+                  </span>
+                </button>
+
+                {/* Input for new namespace */}
+                {isCreatingNamespace && (
+                  <div className="pt-1 pl-8">
+                     <input
+                      type="text"
+                      value={pineconeNamespace}
+                      onChange={(e) => setPineconeNamespace(e.target.value)}
+                      placeholder="Namespace name (e.g., project-x)"
+                      className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none font-mono"
+                    />
+                    <p className="text-[10px] text-silver-dark mt-1">
+                      Data will be uploaded to this namespace. If it doesn't exist, it will be created implicitly.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Embeddings Requirement Check */}
           {!hasEmbeddings && (

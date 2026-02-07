@@ -49,6 +49,8 @@ export interface AppState {
   pineconeEnvKey: string;
   pineconeIndexName: string;
   pineconeIndexes: string[];
+  pineconeNamespace: string;
+  pineconeNamespaces: string[];
   isUploadingPinecone: boolean;
   pineconeError: string | null;
   pineconeSuccess: string | null;
@@ -112,6 +114,8 @@ export interface AppActions {
   setPineconeEnvKey: (key: string) => void;
   setPineconeIndexName: (name: string) => void;
   setPineconeIndexes: (indexes: string[]) => void;
+  setPineconeNamespace: (ns: string) => void;
+  setPineconeNamespaces: (namespaces: string[]) => void;
   setIsUploadingPinecone: (v: boolean) => void;
   setPineconeError: (err: string | null) => void;
   setPineconeSuccess: (msg: string | null) => void;
@@ -171,6 +175,8 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   pineconeEnvKey: "aws-us-east-1",
   pineconeIndexName: "",
   pineconeIndexes: [],
+  pineconeNamespace: "",
+  pineconeNamespaces: [],
   isUploadingPinecone: false,
   pineconeError: null,
   pineconeSuccess: null,
@@ -246,6 +252,8 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   setPineconeEnvKey: (key) => set({ pineconeEnvKey: key }),
   setPineconeIndexName: (name) => set({ pineconeIndexName: name }),
   setPineconeIndexes: (indexes) => set({ pineconeIndexes: indexes }),
+  setPineconeNamespace: (ns) => set({ pineconeNamespace: ns }),
+  setPineconeNamespaces: (namespaces) => set({ pineconeNamespaces: namespaces }),
   setIsUploadingPinecone: (v) => set({ isUploadingPinecone: v }),
   setPineconeError: (err) => set({ pineconeError: err }),
   setPineconeSuccess: (msg) => set({ pineconeSuccess: msg }),
@@ -303,6 +311,8 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
       pineconeEnvKey: "aws-us-east-1",
       pineconeIndexName: "",
       pineconeIndexes: [],
+      pineconeNamespace: "",
+      pineconeNamespaces: [],
       isUploadingPinecone: false,
       pineconeError: null,
       pineconeSuccess: null,

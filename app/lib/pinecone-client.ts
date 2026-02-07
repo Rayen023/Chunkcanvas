@@ -27,6 +27,18 @@ export async function getIndexHost(
   return json.host; // e.g. "my-index-abc123.svc.aped-4627-b74a.pinecone.io"
 }
 
+export async function listNamespaces(apiKey: string, indexName: string): Promise<string[]> {
+  const host = await getIndexHost(apiKey, indexName);
+  const res = await fetch(`https://${host}/describe_index_stats`, {
+    method: "POST",
+    headers: { "Api-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) throw new Error(`Pinecone stats ${res.status}: ${res.statusText}`);
+  const json = await res.json();
+  return Object.keys(json.namespaces || {});
+}
+
 export async function createIndex(
   apiKey: string,
   name: string,
@@ -61,6 +73,7 @@ export async function uploadChunks(
   filename: string,
   onProgress?: (pct: number) => void,
   existingEmbeddings?: number[][] | null,
+  namespace?: string,
 ): Promise<void> {
   // Get index host
   const host = await getIndexHost(pineconeKey, indexName);
@@ -111,7 +124,7 @@ export async function uploadChunks(
         "Api-Key": pineconeKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ vectors }),
+      body: JSON.stringify({ vectors, namespace: namespace || "" }),
     });
 
     if (!res.ok) {
