@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { useAppStore } from "@/app/lib/store";
 import { VOYAGE_MODELS, EMBEDDING_MODELS, OPENROUTER_DEFAULT_EMBEDDING_MODEL, DEFAULT_OLLAMA_ENDPOINT } from "@/app/lib/constants";
 import DownloadScriptButton from "../downloads/DownloadScriptButton";
-import type { EmbeddingsJson, EmbeddingProvider } from "@/app/lib/types";
+import type { EmbeddingsJson } from "@/app/lib/types";
 
 interface OllamaEmbedModel {
   name: string;

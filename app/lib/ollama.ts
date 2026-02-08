@@ -241,8 +241,12 @@ interface OllamaChatMessage {
 
 /**
  * Send a chat request to Ollama with optional images.
- * stream: false → single JSON response.
- * keep_alive: 0 → unload model immediately after response to free VRAM.
+ *
+ * Uses **streaming mode** (NDJSON) and concatenates content tokens.
+ * This is more reliable than `stream: false` which can silently return
+ * empty `message.content` for certain vision models (e.g. qwen3-vl).
+ *
+ * keep_alive  → controls how long the model stays loaded after the request.
  * num_predict → max tokens to prevent infinite generation.
  */
 export async function chatOllama(
@@ -262,7 +266,7 @@ export async function chatOllama(
     body: JSON.stringify({
       model,
       messages,
-      stream: false,
+      stream: true,
       keep_alive: options?.keep_alive ?? 0,
       options: {
         ...(options?.num_ctx && { num_ctx: options.num_ctx }),
@@ -277,8 +281,49 @@ export async function chatOllama(
     throw new Error(`Ollama chat (${model}): ${res.status} — ${text}`);
   }
 
-  const json = await res.json();
-  return json.message?.content ?? "";
+  // Read streaming NDJSON and concatenate message content tokens
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("Ollama chat: no response body");
+
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const obj = JSON.parse(trimmed);
+          if (obj.message?.content) chunks.push(obj.message.content);
+        } catch {
+          // skip malformed NDJSON lines
+        }
+      }
+    }
+
+    // Flush any remaining data in the buffer
+    if (buffer.trim()) {
+      try {
+        const obj = JSON.parse(buffer.trim());
+        if (obj.message?.content) chunks.push(obj.message.content);
+      } catch {
+        // skip
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return chunks.join("");
 }
 
 // ─── Image Processing ─────────────────────────────────────────────────────
@@ -310,8 +355,38 @@ export async function processImageWithOllama(
 // ─── PDF Page-by-Page Processing (Vision) ─────────────────────────────────
 
 /**
+ * Render a single PDF page to a JPEG base64 string via OffscreenCanvas.
+ */
+async function renderPageToBase64(
+  pdf: Awaited<ReturnType<Awaited<typeof import("pdfjs-dist")>["getDocument"]>>["promise"] extends Promise<infer T> ? T : never,
+  pageNum: number,
+): Promise<string> {
+  const page = await pdf.getPage(pageNum);
+  try {
+    const viewport = page.getViewport({ scale: 1.0 });
+    const canvas = new OffscreenCanvas(viewport.width, viewport.height);
+    const ctx = canvas.getContext("2d")!;
+    await page.render({
+      canvasContext: ctx as unknown as CanvasRenderingContext2D,
+      viewport,
+      canvas: canvas as unknown as HTMLCanvasElement,
+    } as unknown as Parameters<typeof page.render>[0]).promise;
+
+    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
+    return fileToBase64(blob);
+  } finally {
+    page.cleanup();
+  }
+}
+
+/**
  * Process a PDF page-by-page using Ollama vision model.
- * Each page is rendered to a PNG image, then sent as a vision request.
+ * Each page is rendered to JPEG, then sent as a vision request.
+ *
+ * IMPORTANT: The model is kept loaded in VRAM during the entire run
+ * (keep_alive="5m") and only unloaded after the final page (keep_alive=0).
+ * Unloading after every page caused empty responses due to reload race
+ * conditions and added massive latency.
  */
 export async function processPdfWithOllama(
   model: string,
@@ -321,57 +396,34 @@ export async function processPdfWithOllama(
   signal?: AbortSignal,
   endpoint?: string,
 ): Promise<string> {
-  // Use pdfjs-dist to render each page to a canvas → PNG → base64
   const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   const arrayBuffer = await pdfFile.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-  
-  // Handle cancellation during PDF load
+
   if (signal?.aborted) {
     loadingTask.destroy();
     throw new DOMException("Aborted", "AbortError");
   }
-  
+
   const pdf = await loadingTask.promise;
   const totalPages = pdf.numPages;
   const pageTexts: string[] = [];
 
   try {
     for (let i = 1; i <= totalPages; i++) {
-      if (signal?.aborted) {
-        throw new DOMException("Aborted", "AbortError");
-      }
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-      let page: Awaited<ReturnType<typeof pdf.getPage>> | null = null;
+      onProgress?.(
+        ((i - 0.5) / totalPages) * 100,
+        `Processing page ${i}/${totalPages}…`,
+      );
 
       try {
-        onProgress?.(
-          ((i - 0.5) / totalPages) * 100,
-          `Processing page ${i}/${totalPages}…`,
-        );
-
-        page = await pdf.getPage(i);
-        // Scale 1.0 = native PDF resolution, good for OCR without excessive file size
-        const viewport = page.getViewport({ scale: 1.0 });
-
-        // Render page to an OffscreenCanvas (no DOM needed)
-        const canvas = new OffscreenCanvas(viewport.width, viewport.height);
-        const ctx = canvas.getContext("2d")!;
-        await page.render({
-          canvasContext: ctx as unknown as CanvasRenderingContext2D,
-          viewport,
-          canvas: canvas as unknown as HTMLCanvasElement,
-        } as unknown as Parameters<typeof page.render>[0]).promise;
-
-        // Convert to JPEG (quality 0.92) for ~70-80% smaller payloads vs PNG
-        // while preserving OCR accuracy — ideal for vision LLM inference
-        const blob = await canvas.convertToBlob({
-          type: "image/jpeg",
-          quality: 0.92,
-        });
-        const b64 = await fileToBase64(blob);
+        const b64 = await renderPageToBase64(pdf, i);
+        const isLastPage = i === totalPages;
 
         const text = await chatOllama(
           model,
@@ -383,51 +435,27 @@ export async function processPdfWithOllama(
           endpoint,
           signal,
           {
-            keep_alive: 0,
+            // Keep model loaded between pages; unload only after the last one
+            keep_alive: isLastPage ? 0 : OLLAMA_CONFIG.KEEP_ALIVE_DEFAULT,
             num_ctx: OLLAMA_CONFIG.VISION_NUM_CTX,
             num_predict: OLLAMA_CONFIG.MAX_TOKENS_VISION,
           },
         );
 
         pageTexts.push(`--- Page ${i} ---\n${text}`);
-
-        // Clean up page object immediately to free memory
-        page.cleanup();
-        page = null;
-
-        // Yield to browser event loop and check for cancellation
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        if (signal?.aborted) {
-          throw new DOMException("Aborted", "AbortError");
-        }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
         if ((err as Error).name === "AbortError") throw err;
+        const msg = err instanceof Error ? err.message : String(err);
         pageTexts.push(`--- Page ${i} ---\n[ERROR] ${msg}`);
-      } finally {
-        // Ensure page cleanup even on error
-        if (page) {
-          try {
-            page.cleanup();
-          } catch {
-            // Ignore cleanup errors
-          }
-        }
       }
 
-      onProgress?.(
-        (i / totalPages) * 100,
-        `Completed page ${i}/${totalPages}`,
-      );
+      onProgress?.((i / totalPages) * 100, `Completed page ${i}/${totalPages}`);
     }
   } finally {
-    // Clean up PDF document - this is critical for freeing memory
-    try {
-      await pdf.cleanup();
-      pdf.destroy();
-    } catch {
-      // Ignore cleanup errors
-    }
+    // Ensure model is unloaded even if aborted mid-run
+    unloadOllamaModel(model, endpoint).catch(() => {});
+    // Release PDF memory
+    try { await pdf.cleanup(); pdf.destroy(); } catch { /* ignore */ }
   }
 
   return pageTexts.join("\n\n");

@@ -200,20 +200,7 @@ export const DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434";
  * https://github.com/ollama/ollama/blob/main/docs/api.md
  */
 export const OLLAMA_CONFIG = {
-  /** Default context window size (tokens) */
-  DEFAULT_NUM_CTX: 4096,
-  /** Extended context for vision tasks (handles image + text) */
   VISION_NUM_CTX: 8192,
-  /** Max tokens to generate per request (prevents infinite generation) */
-  MAX_TOKENS_VISION: 4096,
-  /** Max tokens for shorter responses */
-  MAX_TOKENS_SHORT: 512,
-  /** keep_alive: 0 = unload immediately after response (frees VRAM) */
-  KEEP_ALIVE_UNLOAD: 0,
-  /** keep_alive: -1 = keep loaded indefinitely (faster subsequent requests) */
-  KEEP_ALIVE_FOREVER: -1,
-  /** keep_alive: "5m" = default 5-minute timeout before unload */
+  MAX_TOKENS_VISION: -1,
   KEEP_ALIVE_DEFAULT: "5m",
-  /** Recommended K/V cache quantization for memory savings with minimal quality loss */
-  RECOMMENDED_KV_CACHE: "q8_0", // ~50% memory reduction vs f16
 } as const;

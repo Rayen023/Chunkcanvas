@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/app/lib/store";
 import { PIPELINE } from "@/app/lib/constants";
 import FileUploader from "./components/upload/FileUploader";
@@ -65,6 +65,24 @@ export default function Home() {
   const parseError = useAppStore((s) => s.parseError);
   const isChunking = useAppStore((s) => s.isChunking);
   const openrouterApiKey = useAppStore((s) => s.openrouterApiKey);
+
+  const [parsingTimer, setParsingTimer] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isParsing) {
+      interval = setInterval(() => {
+        setParsingTimer((t) => t + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isParsing]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -144,6 +162,7 @@ export default function Home() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    setParsingTimer(0);
     state.setIsParsing(true);
     state.setParseError(null);
     state.setParseProgress(0, "Initializing...");
@@ -271,6 +290,7 @@ export default function Home() {
             <ProgressBar
               progress={parseProgress}
               message={parseProgressMsg}
+              timer={formatTime(parsingTimer)}
             />
           )}
 
