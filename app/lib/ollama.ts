@@ -9,7 +9,7 @@
  */
 
 import { DEFAULT_OLLAMA_ENDPOINT, OLLAMA_CONFIG } from "./constants";
-import type { ProgressCallback } from "./types";
+import type { PageStreamCallback, ProgressCallback } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -258,7 +258,9 @@ export async function chatOllama(
     num_ctx?: number;
     keep_alive?: number | string;
     num_predict?: number;
+    temperature?: number;
   },
+  onToken?: (token: string) => void,
 ): Promise<string> {
   const res = await fetch(`${endpoint}/api/chat`, {
     method: "POST",
@@ -271,6 +273,7 @@ export async function chatOllama(
       options: {
         ...(options?.num_ctx && { num_ctx: options.num_ctx }),
         ...(options?.num_predict && { num_predict: options.num_predict }),
+        ...(typeof options?.temperature === "number" && { temperature: options.temperature }),
       },
     }),
     signal,
@@ -304,7 +307,10 @@ export async function chatOllama(
         if (!trimmed) continue;
         try {
           const obj = JSON.parse(trimmed);
-          if (obj.message?.content) chunks.push(obj.message.content);
+          if (obj.message?.content) {
+            chunks.push(obj.message.content);
+            onToken?.(obj.message.content);
+          }
           // Ollama signals completion with { "done": true } in NDJSON.
           // Break immediately — do NOT wait for the TCP connection to close,
           // because during parallel requests the connection may stay alive.
@@ -360,6 +366,7 @@ export async function processImageWithOllama(
       keep_alive: 0,
       num_ctx: OLLAMA_CONFIG.VISION_NUM_CTX,
       num_predict: OLLAMA_CONFIG.MAX_TOKENS_VISION,
+      temperature: OLLAMA_CONFIG.VISION_TEMPERATURE,
     },
   );
 }
@@ -399,6 +406,10 @@ async function renderPageToBase64(
  * No client-side batching; the progress bar updates per-page as each
  * individual request resolves, giving smooth real-time feedback.
  *
+ * Streaming: if `onPageStream` is provided, every token from every page
+ * is forwarded in real-time, enabling the UI to display partial text
+ * as it arrives.
+ *
  * VRAM management:
  *   - Every request uses keep_alive = KEEP_ALIVE_DEFAULT so the model
  *     stays loaded while pages are in flight.
@@ -412,6 +423,7 @@ export async function processPdfWithOllama(
   onProgress?: ProgressCallback,
   signal?: AbortSignal,
   endpoint?: string,
+  onPageStream?: PageStreamCallback,
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
   pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -445,7 +457,9 @@ export async function processPdfWithOllama(
     onProgress?.(0, `Sending ${totalPages} pages to ${model}…`);
 
     // 2. Fire ALL chat requests at once — Ollama queues them server-side.
-    //    Each promise updates the progress bar as it resolves.
+    //    Each promise forwards tokens via onPageStream as they arrive.
+    const pageAccumulators: string[] = new Array(totalPages).fill("");
+
     const promises = rendered.map(async ({ pageNum, b64 }) => {
       try {
         const text = await chatOllama(
@@ -461,7 +475,15 @@ export async function processPdfWithOllama(
             keep_alive: OLLAMA_CONFIG.KEEP_ALIVE_DEFAULT,
             num_ctx: OLLAMA_CONFIG.VISION_NUM_CTX,
             num_predict: OLLAMA_CONFIG.MAX_TOKENS_VISION,
+            temperature: OLLAMA_CONFIG.VISION_TEMPERATURE,
           },
+          // Forward each streaming token for this page
+          onPageStream
+            ? (token: string) => {
+                pageAccumulators[pageNum - 1] += token;
+                onPageStream(pageNum, token, pageAccumulators[pageNum - 1]);
+              }
+            : undefined,
         );
         pageTexts[pageNum - 1] = `--- Page ${pageNum} ---\n${text}`;
       } catch (err) {

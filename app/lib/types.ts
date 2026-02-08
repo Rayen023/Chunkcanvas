@@ -127,3 +127,15 @@ export interface EmbeddingsJson {
 // ─── Progress Callback ──────────────────────────────────────────────────
 
 export type ProgressCallback = (pct: number, message?: string) => void;
+
+/**
+ * Called per streaming token during Ollama PDF processing.
+ * @param pageNum  1-based page number
+ * @param token    the incremental text token just received
+ * @param fullPage the full accumulated text for this page so far
+ */
+export type PageStreamCallback = (
+  pageNum: number,
+  token: string,
+  fullPage: string,
+) => void;

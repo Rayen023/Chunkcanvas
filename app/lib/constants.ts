@@ -200,7 +200,8 @@ export const DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434";
  * https://github.com/ollama/ollama/blob/main/docs/api.md
  */
 export const OLLAMA_CONFIG = {
-  VISION_NUM_CTX: 8192,
+  VISION_NUM_CTX: 16000,
   MAX_TOKENS_VISION: -1,
+  VISION_TEMPERATURE: 0.6,
   KEEP_ALIVE_DEFAULT: "5m",
 } as const;

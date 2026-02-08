@@ -3,7 +3,7 @@
  */
 
 import { PIPELINE } from "./constants";
-import type { PdfEngine, ProgressCallback } from "./types";
+import type { PageStreamCallback, PdfEngine, ProgressCallback } from "./types";
 
 // ─── Simple Text Pipeline Parsers ─────────────────────────────────────────
 
@@ -102,9 +102,11 @@ export interface ParseOptions {
   // Excel-specific
   excelColumn?: string;
   excelSheet?: string;
-  // Progress & cancellation
+  // Progress, cancellation & streaming
   onProgress?: ProgressCallback;
   signal?: AbortSignal;
+  /** Real-time token stream for Ollama PDF vision processing */
+  onPageStream?: PageStreamCallback;
 }
 
 export interface ParseResult {
@@ -199,6 +201,7 @@ export async function parseDocument(opts: ParseOptions): Promise<ParseResult> {
         opts.onProgress,
         opts.signal,
         opts.ollamaEndpoint,
+        opts.onPageStream,
       );
       return { content };
     }

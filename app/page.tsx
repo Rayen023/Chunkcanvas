@@ -168,6 +168,16 @@ export default function Home() {
     state.setParseProgress(0, "Initializing...");
     state.resetDownstream(3);
 
+    // For Ollama PDF, show the document view immediately with streaming text
+    const isOllamaPdf = state.pipeline === PIPELINE.OLLAMA_PDF;
+    if (isOllamaPdf) {
+      state.setParsedContent(""); // show Step 3 right away
+    }
+
+    // Accumulator for real-time page streaming — each page builds its own
+    // text independently, then we assemble the full document on each token.
+    const streamingPages: Map<number, string> = new Map();
+
     try {
       const { parseDocument } = await import("@/app/lib/parsers");
 
@@ -186,6 +196,16 @@ export default function Home() {
         excelSheet: state.excelSheet,
         onProgress: (pct, msg) => state.setParseProgress(pct, msg),
         signal: controller.signal,
+        onPageStream: isOllamaPdf
+          ? (pageNum, _token, fullPage) => {
+              streamingPages.set(pageNum, fullPage);
+              // Assemble all pages in order
+              const sorted = Array.from(streamingPages.entries())
+                .sort(([a], [b]) => a - b)
+                .map(([num, text]) => `--- Page ${num} ---\n${text}`);
+              state.setParsedContent(sorted.join("\n\n"));
+            }
+          : undefined,
       });
 
       state.setParsedContent(result.content);
@@ -349,13 +369,13 @@ export default function Home() {
       )}
 
       {/* ═══════ STEP 3 — Parsed Document & Chunking ═══════ */}
-      {parsedContent && (
+      {(parsedContent !== null) && (
         <section id="step-3" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               3
             </span>
-            Review &amp; Chunk
+            {isParsing ? "Live Preview" : "Review & Chunk"}
           </h2>
 
           <ParsedDocumentView />
