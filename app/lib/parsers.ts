@@ -93,6 +93,7 @@ export interface ParseOptions {
   openrouterApiKey?: string;
   openrouterModel?: string;
   openrouterPrompt?: string;
+  openrouterPagesPerBatch?: number;
   pdfEngine?: PdfEngine;
   // Ollama-specific
   ollamaEndpoint?: string;
@@ -143,6 +144,7 @@ export async function parseDocument(opts: ParseOptions): Promise<ParseResult> {
         opts.pdfEngine ?? "native",
         opts.onProgress,
         opts.signal,
+        opts.openrouterPagesPerBatch,
       );
       return { content };
     }

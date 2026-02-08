@@ -8,7 +8,7 @@
  *   POST /api/embed      — generate embeddings
  */
 
-import { DEFAULT_OLLAMA_ENDPOINT } from "./constants";
+import { DEFAULT_OLLAMA_ENDPOINT, OLLAMA_CONFIG } from "./constants";
 import type { ProgressCallback } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -85,6 +85,42 @@ export async function checkOllamaHealth(
     return res2.ok;
   } catch {
     return false;
+  }
+}
+
+// ─── Unload Model (Free VRAM) ─────────────────────────────────────────────
+
+/**
+ * Unload a model from VRAM by sending keep_alive: 0.
+ * This immediately frees the VRAM used by the model.
+ * 
+ * Per Ollama docs: https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately
+ */
+export async function unloadOllamaModel(
+  modelName: string,
+  endpoint: string = DEFAULT_OLLAMA_ENDPOINT,
+): Promise<void> {
+  try {
+    const res = await fetch(`${endpoint}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: modelName,
+        keep_alive: 0,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+    
+    // Server may return 200 or 404 - both are OK for unload
+    if (!res.ok && res.status !== 404) {
+      const text = await res.text().catch(() => res.statusText);
+      throw new Error(`Failed to unload ${modelName}: ${res.status} — ${text}`);
+    }
+  } catch (err) {
+    // Ignore timeout errors - model unload is best-effort
+    if (err instanceof Error && err.name !== "TimeoutError") {
+      throw err;
+    }
   }
 }
 
@@ -206,17 +242,33 @@ interface OllamaChatMessage {
 /**
  * Send a chat request to Ollama with optional images.
  * stream: false → single JSON response.
+ * keep_alive: 0 → unload model immediately after response to free VRAM.
+ * num_predict → max tokens to prevent infinite generation.
  */
 export async function chatOllama(
   model: string,
   messages: OllamaChatMessage[],
   endpoint: string = DEFAULT_OLLAMA_ENDPOINT,
   signal?: AbortSignal,
+  options?: {
+    num_ctx?: number;
+    keep_alive?: number | string;
+    num_predict?: number;
+  },
 ): Promise<string> {
   const res = await fetch(`${endpoint}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages, stream: false }),
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      keep_alive: options?.keep_alive ?? 0,
+      options: {
+        ...(options?.num_ctx && { num_ctx: options.num_ctx }),
+        ...(options?.num_predict && { num_predict: options.num_predict }),
+      },
+    }),
     signal,
   });
 
@@ -247,6 +299,11 @@ export async function processImageWithOllama(
     [{ role: "user", content: prompt, images: [b64] }],
     endpoint,
     signal,
+    {
+      keep_alive: 0,
+      num_ctx: OLLAMA_CONFIG.VISION_NUM_CTX,
+      num_predict: OLLAMA_CONFIG.MAX_TOKENS_VISION,
+    },
   );
 }
 
@@ -269,52 +326,108 @@ export async function processPdfWithOllama(
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   const arrayBuffer = await pdfFile.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  
+  // Handle cancellation during PDF load
+  if (signal?.aborted) {
+    loadingTask.destroy();
+    throw new DOMException("Aborted", "AbortError");
+  }
+  
+  const pdf = await loadingTask.promise;
   const totalPages = pdf.numPages;
   const pageTexts: string[] = [];
 
-  for (let i = 1; i <= totalPages; i++) {
-    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  try {
+    for (let i = 1; i <= totalPages; i++) {
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
 
-    try {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 }); // high-res rendering
+      let page: Awaited<ReturnType<typeof pdf.getPage>> | null = null;
 
-      // Render page to an OffscreenCanvas (no DOM needed)
-      const canvas = new OffscreenCanvas(viewport.width, viewport.height);
-      const ctx = canvas.getContext("2d")!;
-      await page.render({
-        canvasContext: ctx as unknown as CanvasRenderingContext2D,
-        viewport,
-        canvas: canvas as unknown as HTMLCanvasElement,
-      } as unknown as Parameters<typeof page.render>[0]).promise;
+      try {
+        onProgress?.(
+          ((i - 0.5) / totalPages) * 100,
+          `Processing page ${i}/${totalPages}…`,
+        );
 
-      // Convert to PNG blob → base64
-      const blob = await canvas.convertToBlob({ type: "image/png" });
-      const b64 = await fileToBase64(blob);
+        page = await pdf.getPage(i);
+        // Scale 1.0 = native PDF resolution, good for OCR without excessive file size
+        const viewport = page.getViewport({ scale: 1.0 });
 
-      const text = await chatOllama(
-        model,
-        [{
-          role: "user",
-          content: `[Page ${i}/${totalPages}] ${prompt}`,
-          images: [b64],
-        }],
-        endpoint,
-        signal,
+        // Render page to an OffscreenCanvas (no DOM needed)
+        const canvas = new OffscreenCanvas(viewport.width, viewport.height);
+        const ctx = canvas.getContext("2d")!;
+        await page.render({
+          canvasContext: ctx as unknown as CanvasRenderingContext2D,
+          viewport,
+          canvas: canvas as unknown as HTMLCanvasElement,
+        } as unknown as Parameters<typeof page.render>[0]).promise;
+
+        // Convert to JPEG (quality 0.92) for ~70-80% smaller payloads vs PNG
+        // while preserving OCR accuracy — ideal for vision LLM inference
+        const blob = await canvas.convertToBlob({
+          type: "image/jpeg",
+          quality: 0.92,
+        });
+        const b64 = await fileToBase64(blob);
+
+        const text = await chatOllama(
+          model,
+          [{
+            role: "user",
+            content: `[Page ${i}/${totalPages}] ${prompt}`,
+            images: [b64],
+          }],
+          endpoint,
+          signal,
+          {
+            keep_alive: 0,
+            num_ctx: OLLAMA_CONFIG.VISION_NUM_CTX,
+            num_predict: OLLAMA_CONFIG.MAX_TOKENS_VISION,
+          },
+        );
+
+        pageTexts.push(`--- Page ${i} ---\n${text}`);
+
+        // Clean up page object immediately to free memory
+        page.cleanup();
+        page = null;
+
+        // Yield to browser event loop and check for cancellation
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if ((err as Error).name === "AbortError") throw err;
+        pageTexts.push(`--- Page ${i} ---\n[ERROR] ${msg}`);
+      } finally {
+        // Ensure page cleanup even on error
+        if (page) {
+          try {
+            page.cleanup();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+      }
+
+      onProgress?.(
+        (i / totalPages) * 100,
+        `Completed page ${i}/${totalPages}`,
       );
-
-      pageTexts.push(`--- Page ${i} ---\n${text}`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if ((err as Error).name === "AbortError") throw err;
-      pageTexts.push(`--- Page ${i} ---\n[ERROR] ${msg}`);
     }
-
-    onProgress?.(
-      (i / totalPages) * 100,
-      `Parsing PDF… ${Math.round((i / totalPages) * 100)}%`,
-    );
+  } finally {
+    // Clean up PDF document - this is critical for freeing memory
+    try {
+      await pdf.cleanup();
+      pdf.destroy();
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
   return pageTexts.join("\n\n");
@@ -325,6 +438,7 @@ export async function processPdfWithOllama(
 /**
  * Generate embeddings using Ollama's /api/embed endpoint.
  * Supports batch input (array of strings).
+ * keep_alive: 0 → unload model immediately after final batch to free VRAM.
  */
 export async function generateOllamaEmbeddings(
   model: string,
@@ -337,8 +451,13 @@ export async function generateOllamaEmbeddings(
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
+    const isLastBatch = i + batchSize >= texts.length;
 
-    const payload: Record<string, unknown> = { model, input: batch };
+    const payload: Record<string, unknown> = {
+      model,
+      input: batch,
+      keep_alive: isLastBatch ? 0 : "5m",
+    };
     if (dimensions && dimensions > 0) {
       payload.dimensions = dimensions;
     }

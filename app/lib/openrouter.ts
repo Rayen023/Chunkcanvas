@@ -387,6 +387,7 @@ export async function processPdfWithOpenRouter(
   pdfEngine: PdfEngine,
   onProgress?: ProgressCallback,
   signal?: AbortSignal,
+  pagesPerBatch?: number,
 ): Promise<string> {
   // Dynamically import pdf-lib (heavy library → code-split)
   const { PDFDocument } = await import("pdf-lib");
@@ -396,18 +397,27 @@ export async function processPdfWithOpenRouter(
   const totalPages = pdfDoc.getPageCount();
   const pageTexts: string[] = [];
 
-  for (let i = 0; i < totalPages; i++) {
+  // Default to processing all pages at once if pagesPerBatch is 0 or undefined
+  const batchSize = !pagesPerBatch || pagesPerBatch < 1 ? totalPages : pagesPerBatch;
+
+  for (let i = 0; i < totalPages; i += batchSize) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
+    const endPage = Math.min(i + batchSize, totalPages);
+    const isBatch = batchSize > 1;
+
     try {
-      // Extract single page as a new PDF
-      const singlePageDoc = await PDFDocument.create();
-      const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [i]);
-      singlePageDoc.addPage(copiedPage);
-      const singlePageBytes = await singlePageDoc.save();
+      // Create a new PDF for this batch
+      const batchDoc = await PDFDocument.create();
+      // copyPages indices are 0-based
+      const pageIndices = Array.from({ length: endPage - i }, (_, k) => i + k);
+      const copiedPages = await batchDoc.copyPages(pdfDoc, pageIndices);
+      copiedPages.forEach((page) => batchDoc.addPage(page));
       
-      // Convert to base64 in chunks to avoid "Maximum call stack size exceeded"
-      const u8 = new Uint8Array(singlePageBytes);
+      const batchBytes = await batchDoc.save();
+      
+      // Convert to base64 in chunks
+      const u8 = new Uint8Array(batchBytes);
       let binary = "";
       const len = u8.byteLength;
       const CHUNK_SIZE = 0x8000; // 32k
@@ -418,15 +428,19 @@ export async function processPdfWithOpenRouter(
       }
       const b64 = btoa(binary);
 
+      const pageLabel = isBatch
+        ? `Pages ${i + 1}-${endPage}/${totalPages}`
+        : `Page ${i + 1}/${totalPages}`;
+
       const messages = [
         {
           role: "user",
           content: [
-            { type: "text", text: `[Page ${i + 1}/${totalPages}] ${prompt}` },
+            { type: "text", text: `[${pageLabel}] ${prompt}` },
             {
               type: "file",
               file: {
-                filename: `page_${i + 1}.pdf`,
+                filename: `batch_${i + 1}_${endPage}.pdf`,
                 file_data: `data:application/pdf;base64,${b64}`,
               },
             },
@@ -440,13 +454,20 @@ export async function processPdfWithOpenRouter(
           : undefined;
 
       const text = await callOpenRouter(apiKey, model, messages, plugins, signal);
-      pageTexts.push(`--- Page ${i + 1} ---\n${text}`);
+      const header = isBatch
+        ? `--- Pages ${i + 1}-${endPage} ---`
+        : `--- Page ${i + 1} ---`;
+      pageTexts.push(`${header}\n${text}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      pageTexts.push(`--- Page ${i + 1} ---\n[ERROR] ${msg}`);
+      const header = isBatch
+        ? `--- Pages ${i + 1}-${endPage} ---`
+        : `--- Page ${i + 1} ---`;
+      pageTexts.push(`${header}\n[ERROR] ${msg}`);
     }
 
-    onProgress?.(((i + 1) / totalPages) * 100, `Parsing PDF… ${Math.round(((i + 1) / totalPages) * 100)}%`);
+    const progressPct = (endPage / totalPages) * 100;
+    onProgress?.(progressPct, `Parsing PDF… ${Math.round(progressPct)}%`);
   }
 
   return pageTexts.join("\n\n");

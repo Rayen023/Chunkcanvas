@@ -35,6 +35,7 @@ export default function OllamaForm() {
   const [allModels, setAllModels] = useState<OllamaModelInfo[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [unloadingModel, setUnloadingModel] = useState(false);
 
   const fetchModels = useCallback(async () => {
     setLoadingModels(true);
@@ -58,6 +59,23 @@ export default function OllamaForm() {
   useEffect(() => {
     fetchModels();
   }, [fetchModels]);
+
+  // Unload current model from VRAM
+  const handleUnloadModel = useCallback(async () => {
+    if (!model) return;
+    setUnloadingModel(true);
+    try {
+      const { unloadOllamaModel } = await import("@/app/lib/ollama");
+      await unloadOllamaModel(model, endpoint);
+      setModelError(null);
+    } catch (err) {
+      setModelError(
+        err instanceof Error ? err.message : "Failed to unload model",
+      );
+    } finally {
+      setUnloadingModel(false);
+    }
+  }, [model, endpoint]);
 
   // Filter to vision-capable models only (for PDF/image parsing)
   const visionModels = useMemo(() => {
@@ -105,13 +123,25 @@ export default function OllamaForm() {
               </span>
             )}
           </label>
-          <button
-            onClick={fetchModels}
-            disabled={loadingModels}
-            className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50"
-          >
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchModels}
+              disabled={loadingModels}
+              className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50"
+            >
+              Refresh
+            </button>
+            {model && (
+              <button
+                onClick={handleUnloadModel}
+                disabled={unloadingModel}
+                className="text-xs text-red-500 hover:text-red-700 cursor-pointer disabled:opacity-50"
+                title="Unload model from VRAM"
+              >
+                {unloadingModel ? "Unloading…" : "Free VRAM"}
+              </button>
+            )}
+          </div>
         </div>
 
         {modelError && (

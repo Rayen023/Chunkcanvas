@@ -14,6 +14,7 @@ export interface AppState {
   openrouterApiKey: string;
   openrouterModel: string;
   openrouterPrompt: string;
+  openrouterPagesPerBatch: number;
   pdfEngine: PdfEngine;
   excelSheet: string;
   excelSheets: string[];
@@ -92,6 +93,7 @@ export interface AppActions {
   setOpenrouterApiKey: (key: string) => void;
   setOpenrouterModel: (model: string) => void;
   setOpenrouterPrompt: (prompt: string) => void;
+  setOpenrouterPagesPerBatch: (n: number) => void;
   setPdfEngine: (engine: PdfEngine) => void;
   setExcelSheet: (sheet: string) => void;
   setExcelSheets: (sheets: string[]) => void;
@@ -172,6 +174,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   openrouterApiKey: "",
   openrouterModel: "google/gemini-3-flash-preview",
   openrouterPrompt: "",
+  openrouterPagesPerBatch: 0,
   pdfEngine: "native",
   excelSheet: "",
   excelSheets: [],
@@ -236,6 +239,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   setOpenrouterApiKey: (key) => set({ openrouterApiKey: key }),
   setOpenrouterModel: (model) => set({ openrouterModel: model }),
   setOpenrouterPrompt: (prompt) => set({ openrouterPrompt: prompt }),
+  setOpenrouterPagesPerBatch: (n) => set({ openrouterPagesPerBatch: n }),
   setPdfEngine: (engine) => set({ pdfEngine: engine }),
   setExcelSheet: (sheet) => set({ excelSheet: sheet }),
   setExcelSheets: (sheets) => set({ excelSheets: sheets }),

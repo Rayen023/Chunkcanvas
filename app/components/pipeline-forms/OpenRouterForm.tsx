@@ -36,14 +36,46 @@ export default function OpenRouterForm() {
   const model = useAppStore((s) => s.openrouterModel);
   const prompt = useAppStore((s) => s.openrouterPrompt);
   const pdfEngine = useAppStore((s) => s.pdfEngine);
+  const pagesPerBatch = useAppStore((s) => s.openrouterPagesPerBatch);
+  const file = useAppStore((s) => s.file);
 
   const setApiKey = useAppStore((s) => s.setOpenrouterApiKey);
   const setModel = useAppStore((s) => s.setOpenrouterModel);
   const setPrompt = useAppStore((s) => s.setOpenrouterPrompt);
   const setPdfEngine = useAppStore((s) => s.setPdfEngine);
+  const setPagesPerBatch = useAppStore((s) => s.setOpenrouterPagesPerBatch);
 
   const modality: Modality = PIPELINE_MODALITY[pipeline] ?? "file";
   const isPdf = pipeline.includes("PDF");
+
+  // ── Calculate PDF Pages ───────────────────────────────────
+  const [totalPages, setTotalPages] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isPdf || !file) return;
+    
+    let cancelled = false;
+    const countPages = async () => {
+      try {
+        const { PDFDocument } = await import("pdf-lib");
+        const buffer = await file.arrayBuffer();
+        // Load with ignoreEncryption to avoid errors on some files, though encrypted files might still fail
+        const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+        if (!cancelled) {
+          const count = doc.getPageCount();
+          setTotalPages(count);
+          // Set default to all pages (total count) if 0 or invalid
+          if (pagesPerBatch === 0 || pagesPerBatch > count) {
+            setPagesPerBatch(count);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to count PDF pages:", err);
+      }
+    };
+    countPages();
+    return () => { cancelled = true; };
+  }, [file, isPdf, setPagesPerBatch, pagesPerBatch]);
 
   // Auto-fill env key once
   useEffect(() => {
@@ -153,23 +185,55 @@ export default function OpenRouterForm() {
 
       {/* PDF Engine (PDF only) */}
       {isPdf && (
-        <div>
-          <label className="block text-sm font-medium text-gunmetal mb-1">
-            PDF Processing Engine
-          </label>
-          <select
-            value={pdfEngine}
-            onChange={(e) =>
-              setPdfEngine(e.target.value as "native" | "pdf-text" | "mistral-ocr")
-            }
-            className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
-          >
-            {PDF_ENGINES.map((eng) => (
-              <option key={eng.key} value={eng.key}>
-                {eng.label}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gunmetal mb-1">
+              PDF Processing Engine
+            </label>
+            <select
+              value={pdfEngine}
+              onChange={(e) =>
+                setPdfEngine(e.target.value as "native" | "pdf-text" | "mistral-ocr")
+              }
+              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
+            >
+              {PDF_ENGINES.map((eng) => (
+                <option key={eng.key} value={eng.key}>
+                  {eng.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gunmetal mb-1">
+              Pages Per Batch
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min={1}
+                max={totalPages || undefined}
+                value={pagesPerBatch === 0 ? "" : pagesPerBatch}
+                onChange={(e) => {
+                  let val = parseInt(e.target.value);
+                  if (isNaN(val)) val = 0;
+                  // Clamp value to total pages if known
+                  if (totalPages > 0 && val > totalPages) val = totalPages;
+                  setPagesPerBatch(val);
+                }}
+                placeholder={totalPages > 0 ? `Max: ${totalPages}` : "All pages"}
+                className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+              />
+              {totalPages > 0 && (
+                <span className="absolute right-3 top-2 text-xs text-silver-dark pointer-events-none">
+                  / {totalPages}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-silver-dark">
+              Process {pagesPerBatch} page{pagesPerBatch !== 1 ? "s" : ""} at a time.
+            </p>
+          </div>
         </div>
       )}
 

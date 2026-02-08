@@ -125,6 +125,16 @@ export default function Home() {
     !isParsing &&
     (isOpenRouter ? !!openrouterApiKey : true);
 
+  // ── Cancel Processing ───────────────────────────────────────
+  const handleCancel = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+      const state = useAppStore.getState();
+      state.setIsParsing(false);      state.setParseProgress(0, "");      state.setParseError("Processing cancelled by user");
+    }
+  }, []);
+
   // ── Process Document ────────────────────────────────────────
   const handleProcess = useCallback(async () => {
     const state = useAppStore.getState();
@@ -136,7 +146,7 @@ export default function Home() {
 
     state.setIsParsing(true);
     state.setParseError(null);
-    state.setParseProgress(0);
+    state.setParseProgress(0, "Initializing...");
     state.resetDownstream(3);
 
     try {
@@ -148,6 +158,7 @@ export default function Home() {
         openrouterApiKey: state.openrouterApiKey,
         openrouterModel: state.openrouterModel,
         openrouterPrompt: state.openrouterPrompt,
+        openrouterPagesPerBatch: state.openrouterPagesPerBatch,
         pdfEngine: state.pdfEngine,
         ollamaEndpoint: state.ollamaEndpoint,
         ollamaModel: state.ollamaModel,
@@ -270,14 +281,13 @@ export default function Home() {
             </div>
           )}
 
-          {/* Process button */}
-          <button
-            onClick={handleProcess}
-            disabled={!canProcess}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-          >
-            {isParsing ? (
-              <>
+          {/* Process / Cancel buttons */}
+          {isParsing ? (
+            <div className="flex gap-2">
+              <button
+                disabled
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white opacity-75 cursor-not-allowed"
+              >
                 <svg
                   className="h-4 w-4 animate-spin"
                   viewBox="0 0 24 24"
@@ -298,11 +308,23 @@ export default function Home() {
                   />
                 </svg>
                 Processing…
-              </>
-            ) : (
-              "Parse Document"
-            )}
-          </button>
+              </button>
+              <button
+                onClick={handleCancel}
+                className="px-6 py-3 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 active:bg-red-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleProcess}
+              disabled={!canProcess}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            >
+              Parse Document
+            </button>
+          )}
         </section>
       )}
 
