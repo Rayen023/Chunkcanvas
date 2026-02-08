@@ -288,6 +288,7 @@ export async function chatOllama(
   const decoder = new TextDecoder();
   const chunks: string[] = [];
   let buffer = "";
+  let streamDone = false;
 
   try {
     for (;;) {
@@ -304,14 +305,23 @@ export async function chatOllama(
         try {
           const obj = JSON.parse(trimmed);
           if (obj.message?.content) chunks.push(obj.message.content);
+          // Ollama signals completion with { "done": true } in NDJSON.
+          // Break immediately — do NOT wait for the TCP connection to close,
+          // because during parallel requests the connection may stay alive.
+          if (obj.done === true) {
+            streamDone = true;
+            break;
+          }
         } catch {
           // skip malformed NDJSON lines
         }
       }
+
+      if (streamDone) break;
     }
 
-    // Flush any remaining data in the buffer
-    if (buffer.trim()) {
+    // Flush any remaining data in the buffer (only if stream wasn't explicitly done)
+    if (!streamDone && buffer.trim()) {
       try {
         const obj = JSON.parse(buffer.trim());
         if (obj.message?.content) chunks.push(obj.message.content);
@@ -320,6 +330,8 @@ export async function chatOllama(
       }
     }
   } finally {
+    // Cancel the remaining stream instead of waiting for it to drain
+    reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 
@@ -380,13 +392,18 @@ async function renderPageToBase64(
 }
 
 /**
- * Process a PDF page-by-page using Ollama vision model.
- * Each page is rendered to JPEG, then sent as a vision request.
+ * Process a PDF using Ollama vision model with fully concurrent requests.
  *
- * IMPORTANT: The model is kept loaded in VRAM during the entire run
- * (keep_alive="5m") and only unloaded after the final page (keep_alive=0).
- * Unloading after every page caused empty responses due to reload race
- * conditions and added massive latency.
+ * All pages are rendered and fired at once — Ollama's server-side queue
+ * (OLLAMA_NUM_PARALLEL / OLLAMA_MAX_QUEUE) handles the actual concurrency.
+ * No client-side batching; the progress bar updates per-page as each
+ * individual request resolves, giving smooth real-time feedback.
+ *
+ * VRAM management:
+ *   - Every request uses keep_alive = KEEP_ALIVE_DEFAULT so the model
+ *     stays loaded while pages are in flight.
+ *   - After all pages settle, unloadOllamaModel() frees VRAM.
+ *   - The `finally` block guarantees unload even on abort.
  */
 export async function processPdfWithOllama(
   model: string,
@@ -410,55 +427,75 @@ export async function processPdfWithOllama(
 
   const pdf = await loadingTask.promise;
   const totalPages = pdf.numPages;
-  const pageTexts: string[] = [];
+  const pageTexts: string[] = new Array(totalPages).fill("");
+  let completedPages = 0;
+  let abortErr: Error | undefined;
+
+  onProgress?.(0, `Rendering ${totalPages} pages…`);
 
   try {
-    for (let i = 1; i <= totalPages; i++) {
-      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    // 1. Render all pages to base64 concurrently
+    const rendered = await Promise.all(
+      Array.from({ length: totalPages }, (_, i) => i + 1).map(async (pageNum) => {
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+        return { pageNum, b64: await renderPageToBase64(pdf, pageNum) };
+      }),
+    );
 
-      onProgress?.(
-        ((i - 0.5) / totalPages) * 100,
-        `Processing page ${i}/${totalPages}…`,
-      );
+    onProgress?.(0, `Sending ${totalPages} pages to ${model}…`);
 
+    // 2. Fire ALL chat requests at once — Ollama queues them server-side.
+    //    Each promise updates the progress bar as it resolves.
+    const promises = rendered.map(async ({ pageNum, b64 }) => {
       try {
-        const b64 = await renderPageToBase64(pdf, i);
-        const isLastPage = i === totalPages;
-
         const text = await chatOllama(
           model,
           [{
             role: "user",
-            content: `[Page ${i}/${totalPages}] ${prompt}`,
+            content: `[Page ${pageNum}/${totalPages}] ${prompt}`,
             images: [b64],
           }],
           endpoint,
           signal,
           {
-            // Keep model loaded between pages; unload only after the last one
-            keep_alive: isLastPage ? 0 : OLLAMA_CONFIG.KEEP_ALIVE_DEFAULT,
+            keep_alive: OLLAMA_CONFIG.KEEP_ALIVE_DEFAULT,
             num_ctx: OLLAMA_CONFIG.VISION_NUM_CTX,
             num_predict: OLLAMA_CONFIG.MAX_TOKENS_VISION,
           },
         );
-
-        pageTexts.push(`--- Page ${i} ---\n${text}`);
+        pageTexts[pageNum - 1] = `--- Page ${pageNum} ---\n${text}`;
       } catch (err) {
-        if ((err as Error).name === "AbortError") throw err;
-        const msg = err instanceof Error ? err.message : String(err);
-        pageTexts.push(`--- Page ${i} ---\n[ERROR] ${msg}`);
+        if ((err as Error).name === "AbortError") {
+          abortErr = err as Error;
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          pageTexts[pageNum - 1] = `--- Page ${pageNum} ---\n[ERROR] ${msg}`;
+        }
+      } finally {
+        // Per-page progress tick — fires as each request finishes
+        completedPages++;
+        onProgress?.(
+          (completedPages / totalPages) * 100,
+          `Page ${pageNum} done (${completedPages}/${totalPages})`,
+        );
       }
+    });
 
-      onProgress?.((i / totalPages) * 100, `Completed page ${i}/${totalPages}`);
-    }
+    await Promise.all(promises);
+
+    // Re-throw abort after all in-flight requests have settled
+    if (abortErr) throw abortErr;
   } finally {
-    // Ensure model is unloaded even if aborted mid-run
+    // Unload model to free VRAM (fire-and-forget, non-blocking)
     unloadOllamaModel(model, endpoint).catch(() => {});
-    // Release PDF memory
-    try { await pdf.cleanup(); pdf.destroy(); } catch { /* ignore */ }
+    // Release PDF memory (fire-and-forget, non-blocking)
+    Promise.resolve()
+      .then(() => pdf.cleanup())
+      .then(() => pdf.destroy())
+      .catch(() => {});
   }
 
-  return pageTexts.join("\n\n");
+  return pageTexts.filter(Boolean).join("\n\n");
 }
 
 // ─── Embeddings ───────────────────────────────────────────────────────────
