@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { DEFAULT_VLLM_ENDPOINT } from "@/app/lib/constants";
+import { useAppStore } from "@/app/lib/store";
 
 export default function VllmStatus() {
-  const [endpoint, setEndpoint] = useState(DEFAULT_VLLM_ENDPOINT);
+  const endpoint = useAppStore((s) => s.vllmEndpoint);
+  const setEndpoint = useAppStore((s) => s.setVllmEndpoint);
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const [models, setModels] = useState<{ id: string; max_model_len?: number }[]>([]);
   const [checking, setChecking] = useState(false);

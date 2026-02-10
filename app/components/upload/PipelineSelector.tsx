@@ -61,6 +61,7 @@ export default function PipelineSelector() {
   const files = useAppStore((s) => s.files);
   const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
   const setPipelineForExt = useAppStore((s) => s.setPipelineForExt);
+  const lastPipelineByExt = useAppStore((s) => s.lastPipelineByExt);
 
   // Global OpenRouter API key (shared across all ext groups)
   const openrouterApiKey = useAppStore((s) => s.openrouterApiKey);
@@ -103,14 +104,19 @@ export default function PipelineSelector() {
     [pipelinesByExt],
   );
 
-  // Auto-select when only one compatible pipeline for that extension
+  // Auto-select: single compatible pipeline, or restore last-used if compatible
   useEffect(() => {
     for (const [ext, pipelines] of Object.entries(extPipelines)) {
-      if (pipelines.length === 1 && pipelinesByExt[ext] !== pipelines[0]) {
+      // Skip if already selected
+      if (pipelinesByExt[ext]) continue;
+      if (pipelines.length === 1) {
         setPipelineForExt(ext, pipelines[0]);
+      } else if (pipelines.length > 1 && lastPipelineByExt[ext] && pipelines.includes(lastPipelineByExt[ext])) {
+        // Restore last-used pipeline if it's still compatible
+        setPipelineForExt(ext, lastPipelineByExt[ext]);
       }
     }
-  }, [extPipelines, pipelinesByExt, setPipelineForExt]);
+  }, [extPipelines, pipelinesByExt, setPipelineForExt, lastPipelineByExt]);
 
   // Clear invalid selections (e.g. after removing files)
   useEffect(() => {

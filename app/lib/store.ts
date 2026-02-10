@@ -1,7 +1,10 @@
 /**
  * Central Zustand store — single source of truth for the entire app.
+ * Persists user preferences (ports, models, API keys, pipeline choices)
+ * to localStorage so they survive page reloads.
  */
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping, ExtPipelineConfig } from "./types";
 import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_SEPARATORS, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_VLLM_ENDPOINT, DEFAULT_VLLM_EMBEDDING_ENDPOINT } from "./constants";
 
@@ -97,7 +100,13 @@ export interface AppState {
     voyage: string;
     pinecone: string;
   };
-}
+  // ── Persisted user preferences (survive page reloads) ─────
+  /** Last-used pipeline per file extension (e.g. "mp4" → "vLLM — Video...") */
+  lastPipelineByExt: Record<string, string>;
+  /** Last-used per-extension config (endpoints, models, prompts) */
+  lastConfigByExt: Record<string, ExtPipelineConfig>;
+  /** Last-used embedding provider */
+  lastEmbeddingProvider: EmbeddingProvider;}
 
 export interface AppActions {
   // Step 1
@@ -195,6 +204,10 @@ export interface AppActions {
 
   // Reset chunking params to defaults
   resetChunkingDefaults: () => void;
+
+  // Persist helpers (called automatically by other actions)
+  _saveLastPipeline: (ext: string, pipeline: string) => void;
+  _saveLastConfig: (ext: string, config: ExtPipelineConfig) => void;
 }
 
 export function defaultExtConfig(): ExtPipelineConfig {
@@ -216,7 +229,9 @@ export function defaultExtConfig(): ExtPipelineConfig {
   };
 }
 
-export const useAppStore = create<AppState & AppActions>((set, get) => ({
+export const useAppStore = create<AppState & AppActions>()(
+  persist(
+    (set, get) => ({
   // ── Initial state ─────────────────────────────────────────
   files: [],
   pipeline: "",
@@ -288,10 +303,30 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   scrollActiveStep: null,
   envKeys: { openrouter: "", voyage: "", pinecone: "" },
 
+  // Persisted user preferences (initial empty — hydrated from localStorage)
+  lastPipelineByExt: {},
+  lastConfigByExt: {},
+  lastEmbeddingProvider: "openrouter",
+
   // ── Actions ───────────────────────────────────────────────
   setFiles: (files) => {
-    set({ files, pipeline: "", pipelinesByExt: {}, configByExt: {} });
-    get().resetDownstream(1);
+    // Seed pipeline/config from last-used preferences for each extension
+    const state = get();
+    const newPipelinesByExt: Record<string, string> = {};
+    const newConfigByExt: Record<string, ExtPipelineConfig> = {};
+    for (const f of files) {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!ext) continue;
+      if (state.lastPipelineByExt[ext]) {
+        newPipelinesByExt[ext] = state.lastPipelineByExt[ext];
+      }
+      if (state.lastConfigByExt[ext]) {
+        newConfigByExt[ext] = { ...state.lastConfigByExt[ext] };
+      }
+    }
+    const vals = Object.values(newPipelinesByExt).filter(Boolean);
+    set({ files, pipeline: vals[0] || "", pipelinesByExt: newPipelinesByExt, configByExt: newConfigByExt });
+    get().resetDownstream(2);
   },
   addFiles: (newFiles) => {
     set((s) => ({ files: [...s.files, ...newFiles] }));
@@ -323,18 +358,36 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
       const next = { ...s.pipelinesByExt, [ext]: p };
       const vals = Object.values(next).filter(Boolean);
       const nextConfig = { ...s.configByExt };
-      if (!nextConfig[ext]) nextConfig[ext] = defaultExtConfig();
-      return { pipelinesByExt: next, pipeline: vals[0] || "", configByExt: nextConfig };
+      // Seed from last-used config if available, otherwise use defaults
+      if (!nextConfig[ext]) {
+        nextConfig[ext] = s.lastConfigByExt[ext]
+          ? { ...s.lastConfigByExt[ext] }
+          : defaultExtConfig();
+      }
+      // Save to long-term memory
+      const nextLastPipeline = { ...s.lastPipelineByExt, [ext]: p };
+      return {
+        pipelinesByExt: next,
+        pipeline: vals[0] || "",
+        configByExt: nextConfig,
+        lastPipelineByExt: nextLastPipeline,
+      };
     });
     get().resetDownstream(2);
   },
   setConfigForExt: (ext, config) => {
     set((s) => {
       const current = s.configByExt[ext] ?? defaultExtConfig();
+      const updated = { ...current, ...config };
       return {
         configByExt: {
           ...s.configByExt,
-          [ext]: { ...current, ...config },
+          [ext]: updated,
+        },
+        // Also persist to long-term memory
+        lastConfigByExt: {
+          ...s.lastConfigByExt,
+          [ext]: updated,
         },
       };
     });
@@ -400,7 +453,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   setIsChunking: (v) => set({ isChunking: v }),
   setChunkSourceFiles: (files) => set({ chunkSourceFiles: files }),
 
-  setEmbeddingProvider: (provider) => set({ embeddingProvider: provider, embeddingsData: null, embeddingError: null }),
+  setEmbeddingProvider: (provider) => set({ embeddingProvider: provider, embeddingsData: null, embeddingError: null, lastEmbeddingProvider: provider }),
   setVoyageApiKey: (key) => set({ voyageApiKey: key }),
   setVoyageModel: (model) => set({ voyageModel: model }),
   setOpenrouterEmbeddingModel: (model) => set({ openrouterEmbeddingModel: model }),
@@ -452,19 +505,19 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
       pipeline: "",
       pipelinesByExt: {},
       configByExt: {},
-      openrouterApiKey: s.envKeys.openrouter || "",
-      openrouterModel: "google/gemini-3-flash-preview",
+      openrouterApiKey: s.envKeys.openrouter || s.openrouterApiKey || "",
+      openrouterModel: s.openrouterModel || "google/gemini-3-flash-preview",
       openrouterPrompt: "",
-      pdfEngine: "native",
+      pdfEngine: s.pdfEngine || "native",
       excelSheet: "",
       excelSheets: [],
       excelColumn: "",
       excelColumns: [],
-      ollamaEndpoint: DEFAULT_OLLAMA_ENDPOINT,
-      ollamaModel: "",
+      ollamaEndpoint: s.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT,
+      ollamaModel: s.ollamaModel || "",
       ollamaPrompt: "",
-      vllmEndpoint: DEFAULT_VLLM_ENDPOINT,
-      vllmModel: "",
+      vllmEndpoint: s.vllmEndpoint || DEFAULT_VLLM_ENDPOINT,
+      vllmModel: s.vllmModel || "",
       vllmPrompt: "",
       parsedContent: null,
       parsedFilename: "",
@@ -476,38 +529,36 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
       parseProgress: 0,
       parseProgressMsg: "",
       parseError: null,
-      chunkingParams: {
-        separators: DEFAULT_SEPARATORS,
-        chunkSize: DEFAULT_CHUNK_SIZE,
-        chunkOverlap: DEFAULT_CHUNK_OVERLAP,
-      },
+      chunkingParams: s.chunkingParams,
       editedChunks: [],
       chunkSourceFiles: [],
       isChunking: false,
-      embeddingProvider: "openrouter",
-      voyageApiKey: s.envKeys.voyage || "",
-      voyageModel: "voyage-4",
-      openrouterEmbeddingModel: "qwen/qwen3-embedding-8b",
-      embeddingDimensions: DEFAULT_EMBEDDING_DIMENSIONS,
-      ollamaEmbeddingModel: "",
-      ollamaEmbeddingEndpoint: DEFAULT_OLLAMA_ENDPOINT,
-      vllmEmbeddingModel: "",
-      vllmEmbeddingEndpoint: DEFAULT_VLLM_EMBEDDING_ENDPOINT,
+      embeddingProvider: s.lastEmbeddingProvider || "openrouter",
+      voyageApiKey: s.envKeys.voyage || s.voyageApiKey || "",
+      voyageModel: s.voyageModel || "voyage-4",
+      openrouterEmbeddingModel: s.openrouterEmbeddingModel || "qwen/qwen3-embedding-8b",
+      embeddingDimensions: s.embeddingDimensions || DEFAULT_EMBEDDING_DIMENSIONS,
+      ollamaEmbeddingModel: s.ollamaEmbeddingModel || "",
+      ollamaEmbeddingEndpoint: s.ollamaEmbeddingEndpoint || DEFAULT_OLLAMA_ENDPOINT,
+      vllmEmbeddingModel: s.vllmEmbeddingModel || "",
+      vllmEmbeddingEndpoint: s.vllmEmbeddingEndpoint || DEFAULT_VLLM_EMBEDDING_ENDPOINT,
       embeddingsData: null,
       isEmbedding: false,
       embeddingError: null,
-      pineconeApiKey: s.envKeys.pinecone || "",
-      pineconeEnvKey: "aws-us-east-1",
-      pineconeIndexName: "",
+      pineconeApiKey: s.envKeys.pinecone || s.pineconeApiKey || "",
+      pineconeEnvKey: s.pineconeEnvKey || "aws-us-east-1",
+      pineconeIndexName: s.pineconeIndexName || "",
       pineconeIndexes: [],
-      pineconeNamespace: "",
+      pineconeNamespace: s.pineconeNamespace || "",
       pineconeNamespaces: [],
-      pineconeFieldMapping: { idPrefix: "", textField: "text", filenameField: "filename" },
+      pineconeFieldMapping: s.pineconeFieldMapping || { idPrefix: "", textField: "text", filenameField: "filename" },
       isUploadingPinecone: false,
       pineconeError: null,
       pineconeSuccess: null,
       allChunksCollapsed: false,
       scrollActiveStep: null,
+      // Keep persisted preferences intact (not cleared on reset)
+      // lastPipelineByExt, lastConfigByExt, lastEmbeddingProvider are preserved
     });
   },
 
@@ -540,4 +591,110 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
     }
     set(resets);
   },
-}));
+
+  // ── Persist helpers ───────────────────────────────────────
+  _saveLastPipeline: (ext, pipeline) => {
+    set((s) => ({
+      lastPipelineByExt: { ...s.lastPipelineByExt, [ext]: pipeline },
+    }));
+  },
+  _saveLastConfig: (ext, config) => {
+    set((s) => ({
+      lastConfigByExt: { ...s.lastConfigByExt, [ext]: config },
+    }));
+  },
+}),
+    {
+      name: "chunkcanvas-preferences",
+      version: 1,
+      /**
+       * Only persist user-configurable preferences — NOT transient session
+       * data (files, parsed content, progress, embeddings, etc.).
+       */
+      partialize: (state) => ({
+        // Pipeline memory per extension
+        lastPipelineByExt: state.lastPipelineByExt,
+        lastConfigByExt: state.lastConfigByExt,
+        lastEmbeddingProvider: state.lastEmbeddingProvider,
+
+        // ⛔ API keys are NOT persisted — they come from .env or are entered per session.
+        // Storing secrets in localStorage is unsafe for public Docker/cloud deployments.
+
+        // OpenRouter parsing defaults
+        openrouterModel: state.openrouterModel,
+        pdfEngine: state.pdfEngine,
+
+        // Ollama parsing defaults
+        ollamaEndpoint: state.ollamaEndpoint,
+        ollamaModel: state.ollamaModel,
+
+        // vLLM parsing defaults
+        vllmEndpoint: state.vllmEndpoint,
+        vllmModel: state.vllmModel,
+
+        // Chunking parameters
+        chunkingParams: state.chunkingParams,
+
+        // Embedding settings
+        embeddingProvider: state.embeddingProvider,
+        voyageModel: state.voyageModel,
+        openrouterEmbeddingModel: state.openrouterEmbeddingModel,
+        embeddingDimensions: state.embeddingDimensions,
+        ollamaEmbeddingModel: state.ollamaEmbeddingModel,
+        ollamaEmbeddingEndpoint: state.ollamaEmbeddingEndpoint,
+        vllmEmbeddingModel: state.vllmEmbeddingModel,
+        vllmEmbeddingEndpoint: state.vllmEmbeddingEndpoint,
+
+        // Pinecone settings
+        pineconeEnvKey: state.pineconeEnvKey,
+        pineconeIndexName: state.pineconeIndexName,
+        pineconeNamespace: state.pineconeNamespace,
+        pineconeFieldMapping: state.pineconeFieldMapping,
+
+        // UI preferences
+        sidebarCollapsed: state.sidebarCollapsed,
+        sidebarWidth: state.sidebarWidth,
+      }),
+      /**
+       * Merge persisted preferences into the initial state on hydration.
+       * Transient fields keep their defaults; persisted fields are restored.
+       */
+      merge: (persisted, current) => {
+        const p = persisted as Partial<AppState>;
+        return {
+          ...current,
+          ...p,
+          // Never restore transient session state from storage
+          files: [],
+          pipeline: "",
+          pipelinesByExt: {},
+          configByExt: {},
+          parsedContent: null,
+          parsedFilename: "",
+          parsedDocType: "",
+          parsedExcelRows: null,
+          isParsing: false,
+          parseProgress: 0,
+          parseProgressMsg: "",
+          parseError: null,
+          parsedResults: [],
+          currentProcessingFile: "",
+          editedChunks: [],
+          chunkSourceFiles: [],
+          isChunking: false,
+          embeddingsData: null,
+          isEmbedding: false,
+          embeddingError: null,
+          pineconeIndexes: [],
+          pineconeNamespaces: [],
+          isUploadingPinecone: false,
+          pineconeError: null,
+          pineconeSuccess: null,
+          allChunksCollapsed: false,
+          scrollActiveStep: null,
+          envKeys: { openrouter: "", voyage: "", pinecone: "" },
+        };
+      },
+    },
+  ),
+);

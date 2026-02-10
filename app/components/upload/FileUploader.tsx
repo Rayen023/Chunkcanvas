@@ -75,6 +75,10 @@ export default function FileUploader() {
       } else {
         addFiles(deduped);
       }
+
+      // Reset file input values so re-uploading the same file works
+      if (inputRef.current) inputRef.current.value = "";
+      if (dirInputRef.current) dirInputRef.current.value = "";
     },
     [files, setFiles, addFiles],
   );
@@ -83,8 +87,9 @@ export default function FileUploader() {
   const handleFiles = useCallback(
     (incoming: FileList | null) => {
       if (!incoming || incoming.length === 0) return;
-      handleFileArray(Array.from(incoming));
-    },
+      handleFileArray(Array.from(incoming));      // Reset inputs so the same file can be re-selected after clearing
+      if (inputRef.current) inputRef.current.value = "";
+      if (dirInputRef.current) dirInputRef.current.value = "";    },
     [handleFileArray],
   );
 

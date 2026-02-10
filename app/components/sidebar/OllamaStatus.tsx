@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { DEFAULT_OLLAMA_ENDPOINT } from "@/app/lib/constants";
+import { useAppStore } from "@/app/lib/store";
 
 export default function OllamaStatus() {
-  const [endpoint, setEndpoint] = useState(DEFAULT_OLLAMA_ENDPOINT);
+  const endpoint = useAppStore((s) => s.ollamaEndpoint);
+  const setEndpoint = useAppStore((s) => s.setOllamaEndpoint);
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const [models, setModels] = useState<string[]>([]);
   const [checking, setChecking] = useState(false);
