@@ -270,6 +270,19 @@ export async function parseDocument(opts: ParseOptions): Promise<ParseResult> {
       return { content };
     }
 
+    // ── vLLM Audio (Transcription) ─────────────────────────────
+    case PIPELINE.VLLM_AUDIO: {
+      const { transcribeAudioVllm } = await import("./vllm");
+      const content = await transcribeAudioVllm(
+        opts.vllmModel!,
+        opts.file,
+        opts.vllmEndpoint,
+        opts.vllmPrompt,
+        opts.signal,
+      );
+      return { content };
+    }
+
     default:
       throw new Error(`Unsupported pipeline: ${opts.pipeline}`);
   }

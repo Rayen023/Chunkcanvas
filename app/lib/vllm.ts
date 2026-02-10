@@ -313,3 +313,45 @@ export async function generateVllmEmbeddings(
 
   return allEmbeddings;
 }
+
+// ─── Audio Transcription ──────────────────────────────────────────────────
+
+/**
+ * Transcribe an audio file using vLLM's OpenAI-compatible /v1/audio/transcriptions endpoint.
+ */
+export async function transcribeAudioVllm(
+  model: string,
+  audioFile: File,
+  endpoint: string = DEFAULT_VLLM_ENDPOINT,
+  prompt?: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", audioFile);
+  formData.append("model", model);
+  formData.append("response_format", "text");
+  if (prompt) {
+    formData.append("prompt", prompt);
+  }
+
+  const res = await fetch(`${endpoint}/v1/audio/transcriptions`, {
+    method: "POST",
+    body: formData,
+    signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`vLLM transcription (${model}): ${res.status} — ${text}`);
+  }
+
+  // If response_format is "text", the body is the transcription.
+  // Otherwise, it's usually JSON { "text": "..." }
+  const result = await res.text();
+  try {
+    const json = JSON.parse(result);
+    return json.text || result;
+  } catch {
+    return result;
+  }
+}

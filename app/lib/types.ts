@@ -12,6 +12,8 @@ export const PIPELINE = {
   OLLAMA_IMAGE: "Ollama — Image Parsing (Local Vision LLM)",
   VLLM_PDF: "vLLM — PDF Parsing (Local Vision LLM)",
   VLLM_IMAGE: "vLLM — Image Parsing (Local Vision LLM)",
+  VLLM_AUDIO: "vLLM — Audio Transcription (OpenAI-compatible)",
+  VLLM_VIDEO: "vLLM — Video Understanding (Local Video LLM)",
 } as const;
 
 export type PipelineName = (typeof PIPELINE)[keyof typeof PIPELINE];
@@ -29,6 +31,8 @@ export const PIPELINE_MODALITY: Record<string, Modality> = {
   [PIPELINE.OLLAMA_IMAGE]: "image",
   [PIPELINE.VLLM_PDF]: "file",
   [PIPELINE.VLLM_IMAGE]: "image",
+  [PIPELINE.VLLM_AUDIO]: "audio",
+  [PIPELINE.VLLM_VIDEO]: "video",
 };
 
 // ─── OpenRouter Model ─────────────────────────────────────────────────────

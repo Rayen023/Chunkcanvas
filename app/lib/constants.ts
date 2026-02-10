@@ -41,6 +41,9 @@ export const PIPELINE_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
   [PIPELINE.VLLM_IMAGE]: new Set([
     "png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "tif",
   ]),
+  [PIPELINE.VLLM_AUDIO]: new Set([
+    "wav", "mp3", "aiff", "aac", "ogg", "flac", "m4a",
+  ]),
 };
 
 /** Every extension the app accepts */

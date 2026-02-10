@@ -64,7 +64,9 @@ export default function VllmForm() {
     return () => clearTimeout(timer);
   }, [endpoint, fetchModels]);
 
-  const exampleCommand = `vllm serve ${model || "Qwen3-VL-8B-Instruct-FP8"} --port ${endpoint ? new URL(endpoint).port : "8000"}`;
+  const exampleCommand = modality === "audio"
+    ? `vllm serve ${model || "openai/whisper-large-v3"} --port ${endpoint ? new URL(endpoint).port : "8000"}`
+    : `vllm serve ${model || "Qwen3-VL-8B-Instruct-FP8"} --port ${endpoint ? new URL(endpoint).port : "8000"}`;
 
   return (
     <div className="space-y-4">

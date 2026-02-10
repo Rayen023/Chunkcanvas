@@ -2,20 +2,26 @@ export HF_HOME="/mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/lerobot_cache/huggingf
 export VLLM_CACHE_ROOT="/mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/vllm"
 # export VLLM_SERVER_DEV_MODE=1
 # export VLLM_LOGGING_LEVEL=DEBUG
+#mlx-community/gpt-oss-20b-MXFP4-Q8 OOM
 
 MODEL_PATH="${1:-Qwen/Qwen3-VL-8B-Instruct-FP8}"
 # /mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/vllm/Qwen3-0.6B-IQ4_XS.gguf
 # "/mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/vllm/Qwen3-0.6B-Q3_K_M.gguf"
 # Qwen/Qwen3-VL-8B-Instruct-FP8
+# jinaai/jina-embeddings-v3
 source /home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Projects_linux/chunkcanvas/backend/.venv/bin/activate
 
-vllm serve jinaai/jina-embeddings-v3 \
-  --max-model-len 8000 \
-  --gpu-memory-utilization 0.7 \
+vllm serve $MODEL_PATH \
+  --gpu-memory-utilization 0.85 \
   --enforce-eager \
-  --port 8000 \
+  --port 8002 \
   --trust-remote-code \
-  # --enable-sleep-mode \
+  # --max-model-len 16000 \
+  # --enable-auto-tool-choice \
+  # --tool-call-parser openai \
+  # --reasoning-parser=openai_gptoss
+  # --enable-sleep-mode \ #  --tool-call-parser openai
+# KeyError: 'invalid tool call parser: qwen (chose from { deepseek_v3,deepseek_v31,deepseek_v32,ernie45,functiongemma,gigachat3,glm45,glm47,granite,granite-20b-fc,hermes,hunyuan_a13b,internlm,jamba,kimi_k2,llama3_json,llama4_json,llama4_pythonic,longcat,minimax,minimax_m2,mistral,olmo3,openai,phi4_mini_json,pythonic,qwen3_coder,qwen3_xml,seed_oss,step3,step3p5,xlam })'
 
 
 # /mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/vllm/Qwen3-0.6B-IQ4_XS.gguf

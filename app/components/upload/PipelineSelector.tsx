@@ -28,6 +28,8 @@ const PIPELINE_DESCRIPTIONS: Record<string, string> = {
     "Vision-based parsing using a local vLLM instance (OpenAI-compatible).",
   [PIPELINE.VLLM_IMAGE]:
     "Vision-based image description using a local vLLM instance.",
+  [PIPELINE.VLLM_AUDIO]:
+    "Audio transcription using a local vLLM instance (OpenAI-compatible).",
 };
 
 /** Whether a pipeline requires an API key */
@@ -42,6 +44,7 @@ const PIPELINE_NEEDS_KEY: Record<string, boolean> = {
   [PIPELINE.OLLAMA_IMAGE]: false,
   [PIPELINE.VLLM_PDF]: false,
   [PIPELINE.VLLM_IMAGE]: false,
+  [PIPELINE.VLLM_AUDIO]: false,
 };
 
 export default function PipelineSelector() {
