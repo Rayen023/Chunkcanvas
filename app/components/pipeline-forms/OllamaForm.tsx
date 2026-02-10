@@ -14,15 +14,19 @@ interface OllamaModelInfo {
   families?: string[];
 }
 
-export default function OllamaForm() {
-  const pipeline = useAppStore((s) => s.pipeline);
-  const endpoint = useAppStore((s) => s.ollamaEndpoint);
-  const model = useAppStore((s) => s.ollamaModel);
-  const prompt = useAppStore((s) => s.ollamaPrompt);
+export default function OllamaForm({ ext }: { ext: string }) {
+  const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
+  const pipeline = pipelinesByExt[ext] ?? "";
+  const config = useAppStore((s) => s.configByExt[ext]);
+  const setConfigForExt = useAppStore((s) => s.setConfigForExt);
 
-  const setEndpoint = useAppStore((s) => s.setOllamaEndpoint);
-  const setModel = useAppStore((s) => s.setOllamaModel);
-  const setPrompt = useAppStore((s) => s.setOllamaPrompt);
+  const endpoint = config?.ollamaEndpoint ?? DEFAULT_OLLAMA_ENDPOINT;
+  const model = config?.ollamaModel ?? "";
+  const prompt = config?.ollamaPrompt ?? "";
+
+  const setEndpoint = useCallback((v: string) => setConfigForExt(ext, { ollamaEndpoint: v }), [ext, setConfigForExt]);
+  const setModel = useCallback((v: string) => setConfigForExt(ext, { ollamaModel: v }), [ext, setConfigForExt]);
+  const setPrompt = useCallback((v: string) => setConfigForExt(ext, { ollamaPrompt: v }), [ext, setConfigForExt]);
 
   const modality: Modality = PIPELINE_MODALITY[pipeline] ?? "file";
 

@@ -4,9 +4,23 @@ import { useCallback, useRef, useState } from "react";
 import { ALL_ACCEPTED_EXTENSIONS } from "@/app/lib/constants";
 import { useAppStore } from "@/app/lib/store";
 
-/** Get file extension in lowercase */
-function getExt(f: File): string {
-  return f.name.split(".").pop()?.toLowerCase() ?? "";
+/** Recursively traverse a FileSystemEntry tree. */
+async function traverseEntry(entry: FileSystemEntry): Promise<File[]> {
+  if (entry.isFile) {
+    return new Promise<File[]>((resolve) => {
+      (entry as FileSystemFileEntry).file((f) => resolve([f]));
+    });
+  }
+  if (entry.isDirectory) {
+    const reader = (entry as FileSystemDirectoryEntry).createReader();
+    const entries = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+      reader.readEntries(resolve, reject),
+    );
+    const results: File[] = [];
+    for (const e of entries) results.push(...(await traverseEntry(e)));
+    return results;
+  }
+  return [];
 }
 
 export default function FileUploader() {
@@ -15,48 +29,92 @@ export default function FileUploader() {
   const addFiles = useAppStore((s) => s.addFiles);
   const removeFile = useAppStore((s) => s.removeFile);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dirInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [typeError, setTypeError] = useState<string | null>(null);
+  const [dupeWarning, setDupeWarning] = useState<string[] | null>(null);
 
-  /** Validate and add files — all must share the same extension */
-  const handleFiles = useCallback(
-    (incoming: FileList | null) => {
-      if (!incoming || incoming.length === 0) return;
-      setTypeError(null);
+  /** Core handler that takes a File array, deduplicates by name */
+  const handleFileArray = useCallback(
+    (incoming: File[]) => {
+      if (incoming.length === 0) return;
 
-      const arr = Array.from(incoming);
-      const existingExt = files.length > 0 ? getExt(files[0]) : null;
-      const targetExt = existingExt ?? getExt(arr[0]);
-
-      // Filter to only files with the same extension
-      const valid = arr.filter((f) => getExt(f) === targetExt);
-      const rejected = arr.length - valid.length;
-
-      if (rejected > 0) {
-        setTypeError(
-          `${rejected} file(s) skipped — all files must be .${targetExt}`,
-        );
+      // Detect duplicates within the incoming batch
+      const seen = new Map<string, number>();
+      const batchDupes: string[] = [];
+      for (const f of incoming) {
+        seen.set(f.name, (seen.get(f.name) ?? 0) + 1);
+      }
+      for (const [name, count] of seen) {
+        if (count > 1) batchDupes.push(name);
       }
 
-      if (valid.length === 0) return;
+      // Detect duplicates against already-loaded files
+      const existingNames = new Set(files.map((f) => f.name));
+      const crossDupes = incoming
+        .filter((f) => existingNames.has(f.name))
+        .map((f) => f.name);
 
+      const allDupes = [...new Set([...batchDupes, ...crossDupes])];
+
+      // Keep only the first occurrence of each name
+      const uniqueNames = new Set<string>();
+      const deduped = incoming.filter((f) => {
+        if (uniqueNames.has(f.name) || existingNames.has(f.name)) return false;
+        uniqueNames.add(f.name);
+        return true;
+      });
+
+      if (allDupes.length > 0) {
+        setDupeWarning(allDupes);
+        setTimeout(() => setDupeWarning(null), 5000);
+      }
+
+      if (deduped.length === 0) return;
       if (files.length === 0) {
-        setFiles(valid);
+        setFiles(deduped);
       } else {
-        addFiles(valid);
+        addFiles(deduped);
       }
     },
     [files, setFiles, addFiles],
   );
 
+  /** Accept all files — they’ll be grouped by extension in PipelineSelector */
+  const handleFiles = useCallback(
+    (incoming: FileList | null) => {
+      if (!incoming || incoming.length === 0) return;
+      handleFileArray(Array.from(incoming));
+    },
+    [handleFileArray],
+  );
+
   const onDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setDragActive(false);
-      handleFiles(e.dataTransfer.files);
+
+      // Check if any dropped items are directories
+      const items = Array.from(e.dataTransfer.items);
+      const hasDir = items.some((i) => i.webkitGetAsEntry?.()?.isDirectory);
+
+      if (hasDir) {
+        const allFiles: File[] = [];
+        for (const item of items) {
+          const entry = item.webkitGetAsEntry?.();
+          if (entry) {
+            allFiles.push(...(await traverseEntry(entry)));
+          } else if (item.kind === "file") {
+            const f = item.getAsFile();
+            if (f) allFiles.push(f);
+          }
+        }
+        handleFileArray(allFiles);
+      } else {
+        handleFiles(e.dataTransfer.files);
+      }
     },
-    [handleFiles],
+    [handleFiles, handleFileArray],
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -75,6 +133,41 @@ export default function FileUploader() {
 
   return (
     <div className="space-y-3">
+      {/* Duplicate filename warning */}
+      {dupeWarning && dupeWarning.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <svg className="h-5 w-5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+          <div>
+            <p className="font-medium">Duplicate files skipped</p>
+            <p className="text-xs mt-0.5 text-amber-700">
+              {dupeWarning.join(", ")} — only one copy of each file is kept.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDupeWarning(null)}
+            className="ml-auto text-amber-500 hover:text-amber-700 cursor-pointer"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Hidden directory input (outside drop zone to avoid click bubbling) */}
+      <input
+        ref={dirInputRef}
+        type="file"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {...({ webkitdirectory: "true" } as any)}
+        multiple
+        onChange={(e) => handleFiles(e.target.files)}
+        className="hidden"
+      />
+
       {/* Drop zone */}
       <div
         onDrop={onDrop}
@@ -95,7 +188,6 @@ export default function FileUploader() {
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
         />
-
         <div className="flex flex-col items-center gap-2">
           <svg
             className="h-10 w-10 text-silver-dark"
@@ -118,30 +210,37 @@ export default function FileUploader() {
               </p>
               <p className="text-xs text-silver-dark">
                 {(totalSize / 1024).toFixed(1)} KB total — click or drag to add
-                more .{getExt(files[0])} files
+                more files
               </p>
             </div>
           ) : (
             <div>
               <p className="text-sm font-medium text-gunmetal">
-                Drop file(s) here or click to browse
+                Drop file(s) or folder here, or click to browse
               </p>
               <p className="text-xs text-silver-dark mt-1">
                 PDF, DOCX, TXT, MD, XLSX, images, audio, video
               </p>
               <p className="text-xs text-silver-dark mt-0.5">
-                Multiple files of the same type supported
+                Mixed file types supported — each type gets its own pipeline
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Type mismatch warning */}
-      {typeError && (
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-700">
-          {typeError}
-        </div>
+      {/* Upload Folder button */}
+      {files.length === 0 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); dirInputRef.current?.click(); }}
+          className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-silver px-3 py-2 text-sm text-silver-dark hover:border-sandy-light hover:text-gunmetal transition-colors cursor-pointer"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+          </svg>
+          Upload folder
+        </button>
       )}
 
       {/* File list */}

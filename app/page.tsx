@@ -1,30 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAppStore } from "@/app/lib/store";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAppStore, defaultExtConfig } from "@/app/lib/store";
 import { PIPELINE } from "@/app/lib/constants";
+import type { ParsedFileResult } from "@/app/lib/types";
 import FileUploader from "./components/upload/FileUploader";
 import PipelineSelector from "./components/upload/PipelineSelector";
 import ProgressBar from "./components/parsing/ProgressBar";
 
 // Dynamic imports for heavy components — loaded only when needed
-const OpenRouterForm = dynamic(
-  () => import("./components/pipeline-forms/OpenRouterForm"),
-  { loading: () => <FormSkeleton /> },
-);
-const ExcelForm = dynamic(
-  () => import("./components/pipeline-forms/ExcelForm"),
-  { loading: () => <FormSkeleton /> },
-);
-const OllamaForm = dynamic(
-  () => import("./components/pipeline-forms/OllamaForm"),
-  { loading: () => <FormSkeleton /> },
-);
-const VllmForm = dynamic(
-  () => import("./components/pipeline-forms/VllmForm"),
-  { loading: () => <FormSkeleton /> },
-);
 const ParsedDocumentView = dynamic(
   () => import("./components/parsing/ParsedDocumentView"),
 );
@@ -47,20 +32,8 @@ const PineconeSection = dynamic(
   () => import("./components/pinecone/PineconeSection"),
 );
 
-function FormSkeleton() {
-  return (
-    <div className="animate-pulse space-y-3">
-      <div className="h-4 w-24 bg-silver-light rounded" />
-      <div className="h-10 w-full bg-silver-light rounded-lg" />
-      <div className="h-4 w-16 bg-silver-light rounded" />
-      <div className="h-10 w-full bg-silver-light rounded-lg" />
-    </div>
-  );
-}
-
 export default function Home() {
   const files = useAppStore((s) => s.files);
-  const pipeline = useAppStore((s) => s.pipeline);
   const parsedContent = useAppStore((s) => s.parsedContent);
   const editedChunks = useAppStore((s) => s.editedChunks);
   const isParsing = useAppStore((s) => s.isParsing);
@@ -138,15 +111,36 @@ export default function Home() {
     return () => observer.disconnect();
   }, [editedChunks.length, embeddingsData, setScrollActiveStep]);
 
-  const isOpenRouter = pipeline.startsWith("OpenRouter");
-  const isOllama = pipeline.startsWith("Ollama");
-  const isVllm = pipeline.startsWith("vLLM");
-  const showForm = !!pipeline;
+  const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
+
+  /** Unique set of file extensions present in uploaded files */
+  const fileExts = useMemo(() => {
+    const exts = new Set<string>();
+    for (const f of files) {
+      exts.add(f.name.split(".").pop()?.toLowerCase() ?? "");
+    }
+    return exts;
+  }, [files]);
+
+  /** All pipelines currently selected across extension groups */
+  const selectedPipelines = useMemo(
+    () => Object.values(pipelinesByExt).filter(Boolean),
+    [pipelinesByExt],
+  );
+
+  /** Whether every extension has a pipeline selected */
+  const allExtsCovered = useMemo(
+    () => fileExts.size > 0 && [...fileExts].every((ext) => !!pipelinesByExt[ext]),
+    [fileExts, pipelinesByExt],
+  );
+
+  const needsOpenRouter = selectedPipelines.some((p) => p.startsWith("OpenRouter"));
+
   const canProcess =
     files.length > 0 &&
-    !!pipeline &&
+    allExtsCovered &&
     !isParsing &&
-    (isOpenRouter ? !!openrouterApiKey : true);
+    (needsOpenRouter ? !!openrouterApiKey : true);
 
   // ── Cancel Processing ───────────────────────────────────────
   const handleCancel = useCallback(() => {
@@ -161,7 +155,7 @@ export default function Home() {
   // ── Process Document(s) — sequential multi-file ──────────
   const handleProcess = useCallback(async () => {
     const state = useAppStore.getState();
-    if (state.files.length === 0 || !state.pipeline) return;
+    if (state.files.length === 0) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -174,19 +168,26 @@ export default function Home() {
     state.resetDownstream(3);
     state.setParsedResults([]);
 
-    const isLocalPdf = state.pipeline === PIPELINE.OLLAMA_PDF || state.pipeline === PIPELINE.VLLM_PDF;
-    if (isLocalPdf) {
+    // Any file using a local-streaming pipeline?
+    const anyLocalPdf = Object.values(state.pipelinesByExt).some(
+      (p) => p === PIPELINE.OLLAMA_PDF || p === PIPELINE.VLLM_PDF,
+    );
+    if (anyLocalPdf) {
       state.setParsedContent("");
     }
 
     const { parseDocument } = await import("@/app/lib/parsers");
-    const parsedResults: { filename: string; content: string; excelRows?: string[] }[] = [];
+    const parsedResults: ParsedFileResult[] = [];
     const totalFiles = state.files.length;
 
     for (let fileIdx = 0; fileIdx < totalFiles; fileIdx++) {
       if (controller.signal.aborted) break;
 
       const currentFile = state.files[fileIdx];
+      const fileExt = currentFile.name.split(".").pop()?.toLowerCase() ?? "";
+      const filePipeline = state.pipelinesByExt[fileExt] || state.pipeline;
+      const cfg = state.configByExt[fileExt] ?? defaultExtConfig();
+
       state.setCurrentProcessingFile(currentFile.name);
       const baseProgress = (fileIdx / totalFiles) * 100;
       const fileProgressRange = 100 / totalFiles;
@@ -196,25 +197,28 @@ export default function Home() {
         `[${fileIdx + 1}/${totalFiles}] ${currentFile.name}`,
       );
 
+      const isLocalPdf =
+        filePipeline === PIPELINE.OLLAMA_PDF ||
+        filePipeline === PIPELINE.VLLM_PDF;
       const streamingPages: Map<number, string> = new Map();
 
       try {
         const result = await parseDocument({
-          pipeline: state.pipeline,
+          pipeline: filePipeline,
           file: currentFile,
           openrouterApiKey: state.openrouterApiKey,
-          openrouterModel: state.openrouterModel,
-          openrouterPrompt: state.openrouterPrompt,
-          openrouterPagesPerBatch: state.openrouterPagesPerBatch,
-          pdfEngine: state.pdfEngine,
-          ollamaEndpoint: state.ollamaEndpoint,
-          ollamaModel: state.ollamaModel,
-          ollamaPrompt: state.ollamaPrompt,
-          vllmEndpoint: state.vllmEndpoint,
-          vllmModel: state.vllmModel,
-          vllmPrompt: state.vllmPrompt,
-          excelColumn: state.excelColumn,
-          excelSheet: state.excelSheet,
+          openrouterModel: cfg.openrouterModel,
+          openrouterPrompt: cfg.openrouterPrompt,
+          openrouterPagesPerBatch: cfg.openrouterPagesPerBatch,
+          pdfEngine: cfg.pdfEngine,
+          ollamaEndpoint: cfg.ollamaEndpoint,
+          ollamaModel: cfg.ollamaModel,
+          ollamaPrompt: cfg.ollamaPrompt,
+          vllmEndpoint: cfg.vllmEndpoint,
+          vllmModel: cfg.vllmModel,
+          vllmPrompt: cfg.vllmPrompt,
+          excelColumn: cfg.excelColumn,
+          excelSheet: cfg.excelSheet,
           onProgress: (pct, msg) => {
             const adjusted = baseProgress + (pct / 100) * fileProgressRange;
             state.setParseProgress(
@@ -249,6 +253,7 @@ export default function Home() {
           filename: currentFile.name,
           content: result.content,
           excelRows: result.excelRows,
+          pipeline: filePipeline,
         });
 
         // Update combined content after each file
@@ -277,7 +282,10 @@ export default function Home() {
           ? parsedResults[0].filename
           : `${parsedResults.length} files`,
       );
-      state.setParsedDocType(state.pipeline);
+      const uniquePipelines = [...new Set(parsedResults.map((r) => r.pipeline))];
+      state.setParsedDocType(
+        uniquePipelines.length === 1 ? uniquePipelines[0] : "Mixed pipelines",
+      );
 
       const allExcelRows = parsedResults
         .filter((r) => r.excelRows)
@@ -311,8 +319,8 @@ export default function Home() {
         for (const result of results) {
           let fileChunks: string[];
           if (
-            (state.pipeline === PIPELINE.EXCEL_SPREADSHEET ||
-              state.pipeline === PIPELINE.CSV_SPREADSHEET) &&
+            (result.pipeline === PIPELINE.EXCEL_SPREADSHEET ||
+              result.pipeline === PIPELINE.CSV_SPREADSHEET) &&
             result.excelRows
           ) {
             fileChunks = await chunkExcelRows(
@@ -362,40 +370,29 @@ export default function Home() {
         </span>
       </div>
 
-      {/* ═══════ STEP 1 — Upload & Pipeline ═══════ */}
+      {/* ═══════ STEP 1 — Upload Files ═══════ */}
       <section id="step-1" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
         <h2 className="text-lg font-semibold text-gunmetal">
           <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
             1
           </span>
-          Upload &amp; Select Pipeline
+          Upload Files
         </h2>
 
         <FileUploader />
-        {files.length > 0 && <PipelineSelector />}
       </section>
 
-      {/* ═══════ STEP 2 — Pipeline Config & Process ═══════ */}
-      {showForm && (
+      {/* ═══════ STEP 2 — Pipeline, Configure & Parse ═══════ */}
+      {files.length > 0 && (
         <section id="step-2" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               2
             </span>
-            Configure &amp; Parse
+            Select Pipeline, Configure &amp; Parse
           </h2>
 
-          {/* Pipeline-specific form */}
-          {isOpenRouter && <OpenRouterForm />}
-          {isOllama && <OllamaForm />}
-          {isVllm && <VllmForm />}
-          {(pipeline === PIPELINE.EXCEL_SPREADSHEET ||
-            pipeline === PIPELINE.CSV_SPREADSHEET) && <ExcelForm />}
-          {pipeline === PIPELINE.SIMPLE_TEXT && (
-            <p className="text-sm text-silver-dark">
-              No configuration needed for Simple Text extraction.
-            </p>
-          )}
+          <PipelineSelector />
 
           {/* Progress bar */}
           {isParsing && (
@@ -542,7 +539,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ STEP 6 — Pinecone Upload ═══════ */}
+      {/* ═══════ STEP 6 — Vector Databases ═══════ */}
       {editedChunks.length > 0 && (
         <section id="step-6">
           <PineconeSection />

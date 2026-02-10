@@ -38,21 +38,21 @@ const STEPS = [
     title: "Embeddings",
     short: "Generate vector embeddings with OpenRouter or Voyage AI.",
     detail: "Chunks are batched and sent to your chosen embedding provider. Results can be downloaded as JSON.",
-    badge: "API Key",
+    badge: null,
   },
   {
     num: 6,
-    title: "Pinecone Upload",
-    short: "Upload embeddings to a Pinecone index.",
+    title: "Vector Databases",
+    short: "Upload embeddings to a vector database.",
     detail: "Create or select an index, then upsert vectors with chunk text as metadata.",
-    badge: "API Key",
+    badge: null,
   },
 ];
 
 /* ─── Compute the current active step from store state ────── */
 function useActiveStep(): number {
   const files = useAppStore((s) => s.files);
-  const pipeline = useAppStore((s) => s.pipeline);
+  const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
   const parsedContent = useAppStore((s) => s.parsedContent);
   const editedChunks = useAppStore((s) => s.editedChunks);
   const embeddingsData = useAppStore((s) => s.embeddingsData);
@@ -68,7 +68,7 @@ function useActiveStep(): number {
 
   // Before chunks
   if (parsedContent) return 3;
-  if (files.length > 0 && pipeline) return 2;
+  if (files.length > 0 && Object.values(pipelinesByExt).some(Boolean)) return 2;
   return 1;
 }
 

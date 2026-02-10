@@ -3,14 +3,78 @@
 import { useAppStore } from "@/app/lib/store";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
+/** Regex matching the file separator used during multi-file parsing: ═══ filename ═══ */
+const FILE_SEP_RE = /═══ (.+?) ═══/g;
+
 export default function ParsedDocumentView() {
   const parsedContent = useAppStore((s) => s.parsedContent);
   const setParsedContent = useAppStore((s) => s.setParsedContent);
   const isParsing = useAppStore((s) => s.isParsing);
   const [showSaved, setShowSaved] = useState(false);
+  const [activeFile, setActiveFile] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevLenRef = useRef(0);
   const userScrolledRef = useRef(false);
+
+  // ── Derive file sections from parsed content ───────────
+  const fileSections = useMemo(() => {
+    if (!parsedContent) return [];
+    const sections: { name: string; charOffset: number }[] = [];
+    let match: RegExpExecArray | null;
+    const re = new RegExp(FILE_SEP_RE);
+    while ((match = re.exec(parsedContent)) !== null) {
+      sections.push({ name: match[1], charOffset: match.index });
+    }
+    return sections;
+  }, [parsedContent]);
+
+  /** Scroll the textarea so the given character offset is at the top */
+  const scrollToFile = useCallback(
+    (name: string) => {
+      const el = textareaRef.current;
+      if (!el || !parsedContent) return;
+      setActiveFile(name);
+      const section = fileSections.find((s) => s.name === name);
+      if (!section) return;
+
+      // Measure exact pixel position using an off-screen mirror textarea
+      // that matches all text-layout-relevant CSS properties.
+      const mirror = document.createElement("textarea");
+      const cs = getComputedStyle(el);
+      mirror.style.position = "fixed";
+      mirror.style.left = "-9999px";
+      mirror.style.top = "0";
+      mirror.style.visibility = "hidden";
+      mirror.style.width = cs.width;
+      mirror.style.font = cs.font;
+      mirror.style.letterSpacing = cs.letterSpacing;
+      mirror.style.wordSpacing = cs.wordSpacing;
+      mirror.style.padding = cs.padding;
+      mirror.style.border = cs.border;
+      mirror.style.boxSizing = cs.boxSizing;
+      mirror.style.whiteSpace = cs.whiteSpace;
+      mirror.style.wordWrap = cs.wordWrap;
+      mirror.style.overflowWrap = cs.overflowWrap;
+      mirror.style.lineHeight = cs.lineHeight;
+      mirror.style.height = "auto";
+      mirror.style.overflow = "hidden";
+      mirror.value = parsedContent.substring(0, section.charOffset);
+      document.body.appendChild(mirror);
+      const targetY = mirror.scrollHeight;
+      document.body.removeChild(mirror);
+
+      // Place cursor first (setSelectionRange triggers browser auto-scroll),
+      // then override scrollTop in the next frame so our position wins.
+      el.focus();
+      el.setSelectionRange(section.charOffset, section.charOffset);
+      const scrollPos = Math.max(0, targetY - 16);
+      el.scrollTop = scrollPos;
+      requestAnimationFrame(() => {
+        el.scrollTop = scrollPos;
+      });
+    },
+    [parsedContent, fileSections],
+  );
 
   // Hide the "Saved" indicator after 2 seconds
   useEffect(() => {
@@ -98,6 +162,33 @@ export default function ParsedDocumentView() {
           </span>
         </div>
       </div>
+
+      {/* ── File navigation tabs (multi-file only) ─────────── */}
+      {fileSections.length > 1 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          <span className="text-xs font-medium text-silver-dark whitespace-nowrap mr-1">
+            <svg className="inline h-3.5 w-3.5 -mt-0.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
+            Jump to:
+          </span>
+          {fileSections.map((sec, i) => (
+            <button
+              key={`${sec.name}-${i}`}
+              type="button"
+              onClick={() => scrollToFile(sec.name)}
+              className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                activeFile === sec.name
+                  ? "bg-sandy text-white shadow-sm"
+                  : "bg-slate-100 text-gunmetal-light hover:bg-sandy/15 hover:text-sandy-dark"
+              }`}
+            >
+              {sec.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <textarea
         ref={textareaRef}
         value={parsedContent}

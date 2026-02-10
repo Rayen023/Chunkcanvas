@@ -29,22 +29,27 @@ function formatCtx(ctx: number): string {
   return String(ctx);
 }
 
-export default function OpenRouterForm() {
-  const pipeline = useAppStore((s) => s.pipeline);
+export default function OpenRouterForm({ ext }: { ext: string }) {
+  const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
+  const pipeline = pipelinesByExt[ext] ?? "";
   const apiKey = useAppStore((s) => s.openrouterApiKey);
-  const envKey = useAppStore((s) => s.envKeys.openrouter);
-  const model = useAppStore((s) => s.openrouterModel);
-  const prompt = useAppStore((s) => s.openrouterPrompt);
-  const pdfEngine = useAppStore((s) => s.pdfEngine);
-  const pagesPerBatch = useAppStore((s) => s.openrouterPagesPerBatch);
+  const config = useAppStore((s) => s.configByExt[ext]);
+  const setConfigForExt = useAppStore((s) => s.setConfigForExt);
   const files = useAppStore((s) => s.files);
-  const file = files[0] ?? null;
+  const file = useMemo(
+    () => files.find(f => (f.name.split(".").pop()?.toLowerCase() ?? "") === ext) ?? null,
+    [files, ext],
+  );
 
-  const setApiKey = useAppStore((s) => s.setOpenrouterApiKey);
-  const setModel = useAppStore((s) => s.setOpenrouterModel);
-  const setPrompt = useAppStore((s) => s.setOpenrouterPrompt);
-  const setPdfEngine = useAppStore((s) => s.setPdfEngine);
-  const setPagesPerBatch = useAppStore((s) => s.setOpenrouterPagesPerBatch);
+  const model = config?.openrouterModel ?? "google/gemini-3-flash-preview";
+  const prompt = config?.openrouterPrompt ?? "";
+  const pdfEngine = config?.pdfEngine ?? "native";
+  const pagesPerBatch = config?.openrouterPagesPerBatch ?? 0;
+
+  const setModel = useCallback((v: string) => setConfigForExt(ext, { openrouterModel: v }), [ext, setConfigForExt]);
+  const setPrompt = useCallback((v: string) => setConfigForExt(ext, { openrouterPrompt: v }), [ext, setConfigForExt]);
+  const setPdfEngine = useCallback((v: string) => setConfigForExt(ext, { pdfEngine: v as "native" | "pdf-text" | "mistral-ocr" }), [ext, setConfigForExt]);
+  const setPagesPerBatch = useCallback((v: number) => setConfigForExt(ext, { openrouterPagesPerBatch: v }), [ext, setConfigForExt]);
 
   const modality: Modality = PIPELINE_MODALITY[pipeline] ?? "file";
   const isPdf = pipeline.includes("PDF");
@@ -77,11 +82,6 @@ export default function OpenRouterForm() {
     countPages();
     return () => { cancelled = true; };
   }, [file, isPdf, setPagesPerBatch, pagesPerBatch]);
-
-  // Auto-fill env key once
-  useEffect(() => {
-    if (!apiKey && envKey) setApiKey(envKey);
-  }, [apiKey, envKey, setApiKey]);
 
   // Set default prompt on pipeline change
   useEffect(() => {
@@ -137,25 +137,6 @@ export default function OpenRouterForm() {
 
   return (
     <div className="space-y-4">
-      {/* API Key */}
-      <div>
-        <label className="block text-sm font-medium text-gunmetal mb-1">
-          OpenRouter API Key
-        </label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="sk-or-..."
-          className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-        />
-        {!apiKey && (
-          <p className="mt-1 text-xs text-amber-600">
-            An OpenRouter API key is required.
-          </p>
-        )}
-      </div>
-
       {/* Model Selector */}
       <div>
         <label className="block text-sm font-medium text-gunmetal mb-1">
@@ -194,7 +175,7 @@ export default function OpenRouterForm() {
             <select
               value={pdfEngine}
               onChange={(e) =>
-                setPdfEngine(e.target.value as "native" | "pdf-text" | "mistral-ocr")
+                setPdfEngine(e.target.value)
               }
               className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
             >

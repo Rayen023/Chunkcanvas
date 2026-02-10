@@ -6,15 +6,19 @@ import { DEFAULT_VLLM_ENDPOINT, DEFAULT_PROMPTS } from "@/app/lib/constants";
 import { PIPELINE_MODALITY } from "@/app/lib/types";
 import type { Modality } from "@/app/lib/types";
 
-export default function VllmForm() {
-  const pipeline = useAppStore((s) => s.pipeline);
-  const endpoint = useAppStore((s) => s.vllmEndpoint);
-  const model = useAppStore((s) => s.vllmModel);
-  const prompt = useAppStore((s) => s.vllmPrompt);
+export default function VllmForm({ ext }: { ext: string }) {
+  const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
+  const pipeline = pipelinesByExt[ext] ?? "";
+  const config = useAppStore((s) => s.configByExt[ext]);
+  const setConfigForExt = useAppStore((s) => s.setConfigForExt);
 
-  const setEndpoint = useAppStore((s) => s.setVllmEndpoint);
-  const setModel = useAppStore((s) => s.setVllmModel);
-  const setPrompt = useAppStore((s) => s.setVllmPrompt);
+  const endpoint = config?.vllmEndpoint ?? DEFAULT_VLLM_ENDPOINT;
+  const model = config?.vllmModel ?? "";
+  const prompt = config?.vllmPrompt ?? "";
+
+  const setEndpoint = useCallback((v: string) => setConfigForExt(ext, { vllmEndpoint: v }), [ext, setConfigForExt]);
+  const setModel = useCallback((v: string) => setConfigForExt(ext, { vllmModel: v }), [ext, setConfigForExt]);
+  const setPrompt = useCallback((v: string) => setConfigForExt(ext, { vllmPrompt: v }), [ext, setConfigForExt]);
 
   const modality: Modality = PIPELINE_MODALITY[pipeline] ?? "file";
 

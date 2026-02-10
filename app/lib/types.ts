@@ -140,6 +140,7 @@ export interface ParsedFileResult {
   filename: string;
   content: string;
   excelRows?: string[];
+  pipeline: string;
 }
 
 // ─── Pinecone Field Mapping ────────────────────────────────────────────
@@ -148,6 +149,29 @@ export interface PineconeFieldMapping {
   idPrefix: string;
   textField: string;
   filenameField: string;
+}
+
+// ─── Per-Extension Pipeline Config ─────────────────────────────────────
+
+export interface ExtPipelineConfig {
+  // OpenRouter
+  openrouterModel: string;
+  openrouterPrompt: string;
+  openrouterPagesPerBatch: number;
+  pdfEngine: PdfEngine;
+  // Ollama
+  ollamaEndpoint: string;
+  ollamaModel: string;
+  ollamaPrompt: string;
+  // vLLM
+  vllmEndpoint: string;
+  vllmModel: string;
+  vllmPrompt: string;
+  // Excel / CSV
+  excelSheet: string;
+  excelSheets: string[];
+  excelColumn: string;
+  excelColumns: string[];
 }
 
 export type ProgressCallback = (pct: number, message?: string) => void;

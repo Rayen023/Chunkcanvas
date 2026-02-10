@@ -1,20 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAppStore } from "@/app/lib/store";
 
-export default function ExcelForm() {
+export default function ExcelForm({ ext }: { ext: string }) {
   const files = useAppStore((s) => s.files);
-  const file = files[0] ?? null;
-  const excelSheet = useAppStore((s) => s.excelSheet);
-  const excelSheets = useAppStore((s) => s.excelSheets);
-  const excelColumn = useAppStore((s) => s.excelColumn);
-  const excelColumns = useAppStore((s) => s.excelColumns);
-  
-  const setExcelSheet = useAppStore((s) => s.setExcelSheet);
-  const setExcelSheets = useAppStore((s) => s.setExcelSheets);
-  const setExcelColumn = useAppStore((s) => s.setExcelColumn);
-  const setExcelColumns = useAppStore((s) => s.setExcelColumns);
+  const file = useMemo(
+    () => files.find(f => (f.name.split(".").pop()?.toLowerCase() ?? "") === ext) ?? null,
+    [files, ext],
+  );
+  const config = useAppStore((s) => s.configByExt[ext]);
+  const setConfigForExt = useAppStore((s) => s.setConfigForExt);
+
+  const excelSheet = config?.excelSheet ?? "";
+  const excelSheets = config?.excelSheets ?? [];
+  const excelColumn = config?.excelColumn ?? "";
+  const excelColumns = config?.excelColumns ?? [];
+
+  const setExcelSheet = useCallback((v: string) => setConfigForExt(ext, { excelSheet: v }), [ext, setConfigForExt]);
+  const setExcelSheets = useCallback((v: string[]) => setConfigForExt(ext, { excelSheets: v }), [ext, setConfigForExt]);
+  const setExcelColumn = useCallback((v: string) => setConfigForExt(ext, { excelColumn: v }), [ext, setConfigForExt]);
+  const setExcelColumns = useCallback((v: string[]) => setConfigForExt(ext, { excelColumns: v }), [ext, setConfigForExt]);
   
   const [loadingSheets, setLoadingSheets] = useState(false);
   const [loadingColumns, setLoadingColumns] = useState(false);

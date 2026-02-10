@@ -2,13 +2,15 @@
  * Central Zustand store — single source of truth for the entire app.
  */
 import { create } from "zustand";
-import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping } from "./types";
+import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping, ExtPipelineConfig } from "./types";
 import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_SEPARATORS, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_VLLM_ENDPOINT, DEFAULT_VLLM_EMBEDDING_ENDPOINT } from "./constants";
 
 export interface AppState {
   // ── Step 1 ────────────────────────────────────
   files: File[];
   pipeline: string;
+  pipelinesByExt: Record<string, string>;
+  configByExt: Record<string, ExtPipelineConfig>;
 
   // ── Step 2 — pipeline form data ───────────────
   openrouterApiKey: string;
@@ -103,6 +105,8 @@ export interface AppActions {
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
   setPipeline: (pipeline: string) => void;
+  setPipelineForExt: (ext: string, pipeline: string) => void;
+  setConfigForExt: (ext: string, config: Partial<ExtPipelineConfig>) => void;
 
   // Step 2
   setOpenrouterApiKey: (key: string) => void;
@@ -193,10 +197,31 @@ export interface AppActions {
   resetChunkingDefaults: () => void;
 }
 
+export function defaultExtConfig(): ExtPipelineConfig {
+  return {
+    openrouterModel: "google/gemini-3-flash-preview",
+    openrouterPrompt: "",
+    openrouterPagesPerBatch: 0,
+    pdfEngine: "native",
+    ollamaEndpoint: DEFAULT_OLLAMA_ENDPOINT,
+    ollamaModel: "",
+    ollamaPrompt: "",
+    vllmEndpoint: DEFAULT_VLLM_ENDPOINT,
+    vllmModel: "",
+    vllmPrompt: "",
+    excelSheet: "",
+    excelSheets: [],
+    excelColumn: "",
+    excelColumns: [],
+  };
+}
+
 export const useAppStore = create<AppState & AppActions>((set, get) => ({
   // ── Initial state ─────────────────────────────────────────
   files: [],
   pipeline: "",
+  pipelinesByExt: {},
+  configByExt: {},
   openrouterApiKey: "",
   openrouterModel: "google/gemini-3-flash-preview",
   openrouterPrompt: "",
@@ -265,7 +290,7 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
 
   // ── Actions ───────────────────────────────────────────────
   setFiles: (files) => {
-    set({ files, pipeline: "" });
+    set({ files, pipeline: "", pipelinesByExt: {}, configByExt: {} });
     get().resetDownstream(1);
   },
   addFiles: (newFiles) => {
@@ -275,13 +300,44 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
   removeFile: (index) => {
     set((s) => {
       const next = s.files.filter((_, i) => i !== index);
-      return { files: next, ...(next.length === 0 ? { pipeline: "" } : {}) };
+      const remainingExts = new Set(next.map(f => f.name.split(".").pop()?.toLowerCase() ?? ""));
+      const nextPipelines = { ...s.pipelinesByExt };
+      const nextConfig = { ...s.configByExt };
+      for (const ext of Object.keys(nextPipelines)) {
+        if (!remainingExts.has(ext)) {
+          delete nextPipelines[ext];
+          delete nextConfig[ext];
+        }
+      }
+      const vals = Object.values(nextPipelines).filter(Boolean);
+      return { files: next, pipelinesByExt: nextPipelines, pipeline: vals[0] || "", configByExt: nextConfig };
     });
     get().resetDownstream(2);
   },
   setPipeline: (pipeline) => {
     set({ pipeline });
     get().resetDownstream(2);
+  },
+  setPipelineForExt: (ext, p) => {
+    set((s) => {
+      const next = { ...s.pipelinesByExt, [ext]: p };
+      const vals = Object.values(next).filter(Boolean);
+      const nextConfig = { ...s.configByExt };
+      if (!nextConfig[ext]) nextConfig[ext] = defaultExtConfig();
+      return { pipelinesByExt: next, pipeline: vals[0] || "", configByExt: nextConfig };
+    });
+    get().resetDownstream(2);
+  },
+  setConfigForExt: (ext, config) => {
+    set((s) => {
+      const current = s.configByExt[ext] ?? defaultExtConfig();
+      return {
+        configByExt: {
+          ...s.configByExt,
+          [ext]: { ...current, ...config },
+        },
+      };
+    });
   },
 
   setOpenrouterApiKey: (key) => set({ openrouterApiKey: key }),
@@ -394,6 +450,8 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
     set({
       files: [],
       pipeline: "",
+      pipelinesByExt: {},
+      configByExt: {},
       openrouterApiKey: s.envKeys.openrouter || "",
       openrouterModel: "google/gemini-3-flash-preview",
       openrouterPrompt: "",
@@ -457,6 +515,8 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
     const resets: Partial<AppState> = {};
     if (fromStep <= 1) {
       resets.pipeline = "";
+      resets.pipelinesByExt = {};
+      resets.configByExt = {};
     }
     if (fromStep <= 2) {
       resets.parsedContent = null;
