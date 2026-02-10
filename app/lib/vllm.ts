@@ -116,6 +116,7 @@ export async function chatVllm(
   const decoder = new TextDecoder();
   const chunks: string[] = [];
   let buffer = "";
+  let streamDone = false;
 
   try {
     for (;;) {
@@ -131,7 +132,10 @@ export async function chatVllm(
         if (!trimmed || !trimmed.startsWith("data: ")) continue;
         
         const data = trimmed.slice(6);
-        if (data === "[DONE]") break;
+        if (data === "[DONE]") {
+          streamDone = true;
+          break;
+        }
 
         try {
           const obj = JSON.parse(data);
@@ -144,6 +148,8 @@ export async function chatVllm(
           // skip malformed JSON
         }
       }
+
+      if (streamDone) break;
     }
   } finally {
     reader.cancel().catch(() => {});
@@ -292,17 +298,7 @@ export async function processVideoWithVllm(
 
   onProgress?.(10, "Encoding video…");
 
-  const { VIDEO_MIME } = await import("./constants");
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const mime = VIDEO_MIME[ext] ?? "video/mp4";
-
-  // Use the same helper as elsewhere for base64 conversion
-  const reader = new FileReader();
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  const dataUrl = await fileToBase64(file);
 
   onProgress?.(50, "Sending to vLLM…");
 

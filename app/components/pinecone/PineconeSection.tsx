@@ -35,7 +35,6 @@ export default function PineconeSection() {
   const setIsUploading = useAppStore((s) => s.setIsUploadingPinecone);
   const setPineconeError = useAppStore((s) => s.setPineconeError);
   const setPineconeSuccess = useAppStore((s) => s.setPineconeSuccess);
-  const resetDownstream = useAppStore((s) => s.resetDownstream);
 
   // Create index form state
   const [showCreate, setShowCreate] = useState(false);
@@ -171,7 +170,7 @@ export default function PineconeSection() {
   }, [
     pineconeApiKey, voyageApiKey, voyageModel, pineconeIndexName,
     editedChunks, parsedFilename, setIsUploading, setPineconeError,
-    setPineconeSuccess, resetDownstream, hasEmbeddings, embeddingsData,
+    setPineconeSuccess, hasEmbeddings, embeddingsData,
     pineconeNamespace, chunkSourceFiles, pineconeFieldMapping
   ]);
 

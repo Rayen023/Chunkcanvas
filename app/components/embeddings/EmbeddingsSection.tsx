@@ -170,7 +170,7 @@ export default function EmbeddingsSection() {
     setLoadingVllmModels(true);
     setVllmModelError(null);
     try {
-      const { listVllmModels } = await import("@/app/lib/vllm");
+      await import("@/app/lib/vllm");
       // Import type via dynamic import isn't ideal for casting, using standard fetch with types
       const res = await fetch(`${vllmEmbeddingEndpoint}/v1/models`, {
         signal: AbortSignal.timeout(10000),
