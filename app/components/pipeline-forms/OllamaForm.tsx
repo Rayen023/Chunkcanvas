@@ -137,7 +137,7 @@ export default function OllamaForm({ ext }: { ext: string }) {
           value={model}
           onChange={(e) => setModel(e.target.value)}
           disabled={visionModels.length === 0}
-          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
+          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
         >
           {visionModels.length === 0 && (
             <option value="">No vision models available</option>

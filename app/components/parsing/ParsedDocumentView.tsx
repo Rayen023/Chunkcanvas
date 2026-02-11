@@ -198,7 +198,7 @@ export default function ParsedDocumentView() {
         className={`w-full h-[500px] rounded-xl border p-4 text-sm font-mono text-gunmetal-light resize-y focus:outline-none focus:ring-2 focus:ring-sandy/50 focus:border-sandy ${
           isParsing
             ? "border-blue-200 bg-slate-50 cursor-default"
-            : "border-silver-light bg-white"
+            : "border-silver-light bg-card dark:bg-black/20"
         }`}
       />
     </div>

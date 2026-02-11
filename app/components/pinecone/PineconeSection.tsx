@@ -177,7 +177,7 @@ export default function PineconeSection() {
   if (editedChunks.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-4">
+    <div className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-4">
       <h2 className="text-lg font-semibold text-gunmetal">
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
           6
@@ -226,7 +226,7 @@ export default function PineconeSection() {
                       w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
                       ${isSelected
                         ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                        : "border-silver-light bg-white hover:border-sandy/50 hover:bg-sandy/4"
+                        : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
                       }
                     `}
                   >
@@ -276,7 +276,7 @@ export default function PineconeSection() {
                               w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
                               ${isSelected
                                 ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                                : "border-silver-light bg-white hover:border-sandy/50 hover:bg-sandy/4"
+                                : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
                               }
                             `}
                           >
@@ -306,7 +306,7 @@ export default function PineconeSection() {
                   onToggle={(e) => setShowCreate((e.target as HTMLDetailsElement).open)}
                   className="group rounded-lg border border-silver-light overflow-hidden"
                 >
-                  <summary className="cursor-pointer select-none list-none flex items-center gap-2 bg-white px-4 py-3 hover:bg-sandy/4 transition-colors">
+                  <summary className="cursor-pointer select-none list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
                     <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
@@ -315,7 +315,7 @@ export default function PineconeSection() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                   </summary>
-                  <div className="border-t border-silver-light bg-gray-50/50 px-4 py-4 space-y-3">
+                  <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
                     <input
                       type="text"
                       value={newIdxName}
@@ -349,7 +349,7 @@ export default function PineconeSection() {
                                 flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-all cursor-pointer
                                 ${newIdxMetric === m
                                   ? "border-sandy bg-sandy/10 text-sandy-dark"
-                                  : "border-silver-light bg-white text-gunmetal-light hover:border-sandy/50"
+                                  : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50"
                                 }
                               `}
                             >
@@ -408,7 +408,7 @@ export default function PineconeSection() {
                         w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
                         ${isSelected
                           ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                          : "border-silver-light bg-white hover:border-sandy/50 hover:bg-sandy/4"
+                          : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
                         }
                       `}
                     >
@@ -437,7 +437,7 @@ export default function PineconeSection() {
                   onToggle={(e) => setIsCreatingNamespace((e.target as HTMLDetailsElement).open)}
                   className="group rounded-lg border border-silver-light overflow-hidden"
                 >
-                  <summary className="cursor-pointer select-none list-none flex items-center gap-2 bg-white px-4 py-3 hover:bg-sandy/4 transition-colors">
+                  <summary className="cursor-pointer select-none list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
                     <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
@@ -446,7 +446,7 @@ export default function PineconeSection() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                   </summary>
-                  <div className="border-t border-silver-light bg-gray-50/50 px-4 py-4 space-y-3">
+                  <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
                     <input
                       type="text"
                       value={pineconeNamespace}
@@ -472,14 +472,14 @@ export default function PineconeSection() {
 
           {/* ── Field Name Editor ── */}
           <details className="group rounded-lg border border-silver-light overflow-hidden">
-            <summary className="cursor-pointer select-none list-none flex items-center gap-2 bg-white px-4 py-3 hover:bg-sandy/4 transition-colors">
+            <summary className="cursor-pointer select-none list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
               <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
               <span className="text-sm font-medium text-gunmetal">Upload Field Names</span>
               <span className="ml-auto text-[10px] text-silver-dark">Customize vector field names</span>
             </summary>
-            <div className="border-t border-silver-light bg-gray-50/50 px-4 py-4 space-y-3">
+            <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
               <p className="text-[10px] text-silver-dark mb-2">
                 Edit the field names used when uploading vectors to Pinecone.
               </p>

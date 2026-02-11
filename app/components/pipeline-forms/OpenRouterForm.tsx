@@ -150,7 +150,7 @@ export default function OpenRouterForm({ ext }: { ext: string }) {
         <select
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
+          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
         >
           {filteredModels.map((m: OpenRouterModelFull) => {
             const inPrice = formatPricing(m.pricing.prompt);
@@ -177,7 +177,7 @@ export default function OpenRouterForm({ ext }: { ext: string }) {
               onChange={(e) =>
                 setPdfEngine(e.target.value)
               }
-              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
+              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
             >
               {PDF_ENGINES.map((eng) => (
                 <option key={eng.key} value={eng.key}>

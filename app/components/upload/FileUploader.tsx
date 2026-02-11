@@ -254,7 +254,7 @@ export default function FileUploader() {
           {files.map((f, i) => (
             <div
               key={`${f.name}-${i}`}
-              className="flex items-center justify-between rounded-lg border border-silver-light bg-white px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-lg border border-silver-light bg-card px-3 py-2 text-sm"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <svg

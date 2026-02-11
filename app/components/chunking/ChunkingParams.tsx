@@ -110,7 +110,7 @@ export default function ChunkingParams() {
                   inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer select-none
                   ${active
                     ? "border-sandy bg-sandy/10 text-sandy-dark"
-                    : "border-silver-light bg-white text-silver-dark line-through opacity-60 hover:opacity-80"
+                    : "border-silver-light bg-card text-silver-dark line-through opacity-60 hover:opacity-80"
                   }
                 `}
                 title={active ? `Click to remove "${label(sep)}"` : `Click to add "${label(sep)}"`}

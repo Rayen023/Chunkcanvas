@@ -330,7 +330,7 @@ export default function EmbeddingsSection() {
   if (editedChunks.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-4">
+    <div className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-4">
       <h2 className="text-lg font-semibold text-gunmetal">
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
           5
@@ -349,7 +349,7 @@ export default function EmbeddingsSection() {
             className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium border transition-colors cursor-pointer ${
               embeddingProvider === "openrouter"
                 ? "bg-sandy text-white border-sandy"
-                : "bg-white text-gunmetal border-silver hover:border-sandy"
+                : "bg-card text-gunmetal border-silver hover:border-sandy"
             }`}
           >
             OpenRouter
@@ -359,7 +359,7 @@ export default function EmbeddingsSection() {
             className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium border transition-colors cursor-pointer ${
               embeddingProvider === "voyage"
                 ? "bg-sandy text-white border-sandy"
-                : "bg-white text-gunmetal border-silver hover:border-sandy"
+                : "bg-card text-gunmetal border-silver hover:border-sandy"
             }`}
           >
             Voyage AI
@@ -369,7 +369,7 @@ export default function EmbeddingsSection() {
             className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium border transition-colors cursor-pointer ${
               embeddingProvider === "ollama"
                 ? "bg-sandy text-white border-sandy"
-                : "bg-white text-gunmetal border-silver hover:border-sandy"
+                : "bg-card text-gunmetal border-silver hover:border-sandy"
             }`}
           >
             Ollama
@@ -379,7 +379,7 @@ export default function EmbeddingsSection() {
             className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium border transition-colors cursor-pointer ${
               embeddingProvider === "vllm"
                 ? "bg-sandy text-white border-sandy"
-                : "bg-white text-gunmetal border-silver hover:border-sandy"
+                : "bg-card text-gunmetal border-silver hover:border-sandy"
             }`}
           >
             vLLM
@@ -420,7 +420,7 @@ export default function EmbeddingsSection() {
             <select
               value={openrouterEmbeddingModel}
               onChange={(e) => setOpenrouterEmbeddingModel(e.target.value)}
-              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
+              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
             >
               {orEmbeddingModels.map((m) => {
                 const inPrice = formatPricing(m.pricing.prompt);
@@ -464,7 +464,7 @@ export default function EmbeddingsSection() {
             <select
               value={voyageModel}
               onChange={(e) => setVoyageModel(e.target.value)}
-              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
+              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
             >
               {VOYAGE_MODELS.map((m) => (
                 <option key={m.key} value={m.key}>
@@ -535,7 +535,7 @@ export default function EmbeddingsSection() {
               value={ollamaEmbeddingModel}
               onChange={(e) => setOllamaEmbeddingModel(e.target.value)}
               disabled={ollamaEmbedModels.length === 0}
-              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
+              className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
             >
               {ollamaEmbedModels.length === 0 && (
                 <option value="">No embedding models available</option>
@@ -602,7 +602,7 @@ export default function EmbeddingsSection() {
               <select
                 value={vllmEmbeddingModel}
                 onChange={(e) => setVllmEmbeddingModel(e.target.value)}
-                className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
+                className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none"
               >
                 {vllmEmbedModels.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -656,7 +656,7 @@ export default function EmbeddingsSection() {
               />
             </svg>
             <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 w-48 scale-0 group-hover:scale-100 transition-all duration-200 origin-left z-10">
-              <div className="bg-gunmetal text-white text-[10px] rounded p-2 shadow-lg border border-white/10">
+              <div className="bg-slate-900 text-white text-[10px] rounded p-2 shadow-lg border border-white/10">
                 Verify model support for custom dimensions.
               </div>
             </div>
@@ -711,7 +711,7 @@ export default function EmbeddingsSection() {
             <button
               onClick={handleDownloadEmbeddings}
               disabled={downloadingJson}
-              className="flex items-center justify-center gap-2 rounded-lg bg-white border border-silver px-4 py-3 text-sm font-medium text-gunmetal hover:border-sandy hover:text-sandy transition-colors disabled:opacity-50 cursor-pointer"
+              className="flex items-center justify-center gap-2 rounded-lg bg-card border border-silver px-4 py-3 text-sm font-medium text-gunmetal hover:border-sandy hover:text-sandy transition-colors disabled:opacity-50 cursor-pointer"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

@@ -76,7 +76,7 @@ function ChunkCard({ index, text, sourceFile, onUpdate, onDelete, forceCollapsed
   };
 
   return (
-    <div className="rounded-xl border border-silver-light bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-silver-light bg-card shadow-sm overflow-hidden">
       {/* Header */}
       <div
         onClick={() => setLocalExpanded((v) => !v)}
@@ -182,7 +182,7 @@ function ChunkCard({ index, text, sourceFile, onUpdate, onDelete, forceCollapsed
             value={text}
             onChange={handleChange}
             rows={10}
-            className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono text-gunmetal-light focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none resize-y"
+            className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono text-gunmetal-light bg-card dark:bg-black/20 focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none resize-y"
           />
         </div>
       )}

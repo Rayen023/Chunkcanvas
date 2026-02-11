@@ -86,7 +86,7 @@ export default function OllamaStatus() {
         Ollama Server Status
       </summary>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-2 p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-silver-light/50">
         <label className="block text-xs text-gunmetal-light">
           Ollama endpoint
         </label>

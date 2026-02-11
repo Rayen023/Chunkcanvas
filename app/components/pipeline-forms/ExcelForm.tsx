@@ -91,7 +91,7 @@ export default function ExcelForm({ ext }: { ext: string }) {
           value={excelSheet}
           onChange={(e) => setExcelSheet(e.target.value)}
           disabled={loadingSheets || excelSheets.length === 0}
-          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
+          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
         >
           <option value="" disabled>
             -- Select a sheet --
@@ -123,7 +123,7 @@ export default function ExcelForm({ ext }: { ext: string }) {
           value={excelColumn}
           onChange={(e) => setExcelColumn(e.target.value)}
           disabled={!excelSheet || excelColumns.length === 0}
-          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
+          className="w-full rounded-lg border border-silver px-3 py-2 text-sm bg-card focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none appearance-none disabled:opacity-50"
         >
           {excelColumns.length === 0 && !loadingColumns ? (
             <option value="" disabled>

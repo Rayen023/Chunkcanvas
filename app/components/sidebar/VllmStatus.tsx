@@ -3,76 +3,153 @@
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/app/lib/store";
 
+type EndpointStatus = {
+  status: "idle" | "ok" | "error";
+  models: { id: string; max_model_len?: number }[];
+};
+
 export default function VllmStatus() {
   const endpoint = useAppStore((s) => s.vllmEndpoint);
   const setEndpoint = useAppStore((s) => s.setVllmEndpoint);
-  const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
-  const [models, setModels] = useState<{ id: string; max_model_len?: number }[]>([]);
+  const additionalEndpoints = useAppStore((s) => s.vllmAdditionalEndpoints);
+  const setAdditionalEndpoints = useAppStore((s) => s.setVllmAdditionalEndpoints);
+
+  const [statuses, setStatuses] = useState<Record<string, EndpointStatus>>({});
   const [checking, setChecking] = useState(false);
   const [showExample, setShowExample] = useState(false);
 
-  const exampleCommand = `vllm serve ${models[0]?.id || "model_name"} --port ${endpoint ? new URL(endpoint).port : "8000"}`;
+  // Example command uses the first endpoint (main one)
+  const exampleCommand = `vllm serve model_name --port ${
+    endpoint ? (new URL(endpoint).port || "8000") : "8000"
+  }`;
 
-  const check = useCallback(async () => {
-    setChecking(true);
-    setStatus("idle");
-    setModels([]);
-
+  const checkOne = async (url: string): Promise<EndpointStatus> => {
+    if (!url) return { status: "idle", models: [] };
+    
+    // Normalize URL
+    const cleanUrl = url.replace(/\/+$/, "");
+    
     try {
       // Try /health first
-      const healthRes = await fetch(`${endpoint}/health`, {
+      const healthRes = await fetch(`${cleanUrl}/health`, {
         signal: AbortSignal.timeout(5000),
       });
+      
       if (healthRes.ok) {
-        setStatus("ok");
-        // Also try to list models
+        // Try to list models
         try {
-          const modelsRes = await fetch(`${endpoint}/v1/models`, {
+          const modelsRes = await fetch(`${cleanUrl}/v1/models`, {
             signal: AbortSignal.timeout(5000),
           });
           if (modelsRes.ok) {
             const json = await modelsRes.json();
-            setModels(
-              (json.data ?? []).map(
+            return {
+              status: "ok",
+              models: (json.data ?? []).map(
                 (m: { id: string; max_model_len?: number }) => ({
                   id: m.id,
                   max_model_len: m.max_model_len,
                 }),
               ),
-            );
+            };
           }
         } catch {
           /* Models fetch optional */
         }
-        setChecking(false);
-        return;
+        return { status: "ok", models: [] };
       }
     } catch {
-      /* health endpoint failed, try models */
+      /* health endpoint failed, try models directly */
     }
 
     try {
-      const modelsRes = await fetch(`${endpoint}/v1/models`, {
+      const modelsRes = await fetch(`${cleanUrl}/v1/models`, {
         signal: AbortSignal.timeout(5000),
       });
       if (modelsRes.ok) {
         const json = await modelsRes.json();
-        setModels(
-          (json.data ?? []).map((m: { id: string; max_model_len?: number }) => ({
-            id: m.id,
-            max_model_len: m.max_model_len,
-          })),
-        );
-        setStatus("ok");
-      } else {
-        setStatus("error");
+        return {
+          status: "ok",
+          models: (json.data ?? []).map(
+            (m: { id: string; max_model_len?: number }) => ({
+              id: m.id,
+              max_model_len: m.max_model_len,
+            }),
+          ),
+        };
       }
     } catch {
-      setStatus("error");
+      // both failed
     }
 
+    return { status: "error", models: [] };
+  };
+
+  const checkAll = useCallback(async () => {
+    setChecking(true);
+    setStatuses({});
+
+    const allUrls = [endpoint, ...additionalEndpoints].filter((url) => url.trim().length > 0);
+    // Deduplicate logic if needed, but keeping separate is fine for explicit checks
+
+    const results: Record<string, EndpointStatus> = {};
+    
+    await Promise.all(
+      allUrls.map(async (url) => {
+        results[url] = await checkOne(url);
+      })
+    );
+
+    setStatuses(results);
     setChecking(false);
-  }, [endpoint]);
+  }, [endpoint, additionalEndpoints]);
+
+  const addEndpoint = () => {
+    // 1. Determine the "reference" endpoint (last one added or the primary one)
+    const lastEndpoint =
+      additionalEndpoints.length > 0
+        ? additionalEndpoints[additionalEndpoints.length - 1]
+        : endpoint;
+
+    let nextEndpoint = "";
+
+    try {
+      // 2. Parse the reference endpoint
+      const url = new URL(lastEndpoint);
+      // 3. Extract and increment the port
+      const currentPort = parseInt(url.port || (url.protocol === "https:" ? "443" : "80"), 10);
+      
+      if (!isNaN(currentPort)) {
+        url.port = (currentPort + 1).toString();
+        nextEndpoint = url.toString();
+      } else {
+        // Fallback if port parsing fails but URL is valid-ish
+        nextEndpoint = lastEndpoint;
+      }
+    } catch {
+      // Fallback for invalid URLs or simple strings
+      nextEndpoint = lastEndpoint; 
+    }
+    
+    // Remove trailing slash if the URL constructor added it and the original didn't have it, 
+    // or just leave it standard. new URL() usually adds a trailing slash.
+    // Let's strip it to be cleaner if the user input didn't have it, but standard is fine.
+    // For simplicity, we just use the string.
+    
+    setAdditionalEndpoints([...additionalEndpoints, nextEndpoint]);
+  };
+
+  const removeEndpoint = (index: number) => {
+    const next = [...additionalEndpoints];
+    next.splice(index, 1);
+    setAdditionalEndpoints(next);
+  };
+
+  const updateAdditionalEndpoint = (index: number, val: string) => {
+    const next = [...additionalEndpoints];
+    next[index] = val;
+    setAdditionalEndpoints(next);
+  };
 
   return (
     <details className="group">
@@ -93,16 +170,53 @@ export default function VllmStatus() {
         vLLM Server Status
       </summary>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-2 p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-silver-light/50">
         <label className="block text-xs text-gunmetal-light">
-          vLLM endpoint
+          vLLM endpoints
         </label>
-        <input
-          type="text"
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-          className="w-full rounded-lg border border-silver px-3 py-1.5 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-        />
+        
+        {/* Main Endpoint */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+            placeholder="Primary endpoint (e.g. http://localhost:8000)"
+            className="flex-1 rounded-lg border border-silver px-3 py-1.5 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none min-w-0"
+          />
+          <button
+            onClick={addEndpoint}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-sandy text-white hover:bg-sandy-light active:bg-sandy-dark transition-colors"
+            title="Add another vLLM server"
+          >
+             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Additional Endpoints */}
+        {additionalEndpoints.map((ep, i) => (
+          <div key={i} className="flex gap-2">
+            <input
+              type="text"
+              value={ep}
+              onChange={(e) => updateAdditionalEndpoint(i, e.target.value)}
+              placeholder="Additional endpoint"
+              className="flex-1 rounded-lg border border-silver px-3 py-1.5 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none min-w-0"
+            />
+            <button
+              onClick={() => removeEndpoint(i)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
+              title="Remove endpoint"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+
         <div className="mt-1">
           <button
             onClick={() => setShowExample(!showExample)}
@@ -117,33 +231,54 @@ export default function VllmStatus() {
           )}
         </div>
         <button
-          onClick={check}
+          onClick={checkAll}
           disabled={checking}
           className="w-full rounded-lg bg-sandy px-3 py-1.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
         >
-          {checking ? "Checking…" : "Check"}
+          {checking ? "Checking All..." : "Check All Statuses"}
         </button>
 
-        {status === "ok" && (
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-700">
-            <span className="font-semibold">&#x2714; vLLM server is healthy</span>
-            {models.length > 0 && (
-              <ul className="mt-1 ml-4 list-disc">
-                {models.map((m) => (
-                  <li key={m.id}>
-                    {m.id} {m.max_model_len ? `(ctx: ${m.max_model_len})` : ""}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+        {/* Status Display */}
+        <div className="space-y-2 pt-2">
+          {[endpoint, ...additionalEndpoints].map((url, idx) => {
+             if (!url) return null;
+             const st = statuses[url];
+             if (!st || st.status === "idle") return null;
 
-        {status === "error" && (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-700">
-            vLLM server not reachable at <code>{endpoint}</code>
-          </div>
-        )}
+             return (
+               <div key={`${url}-${idx}`} className={`rounded-lg p-2 text-xs border ${st.status === "ok" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
+                 <div className="font-bold mb-1 break-all">{url}</div>
+                 {st.status === "ok" ? (
+                   <>
+                     <div className="flex items-center gap-1 mb-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-semibold">Healthy</span>
+                     </div>
+                     {st.models.length > 0 && (
+                       <ul className="ml-4 list-disc opacity-90">
+                         {st.models.map((m) => (
+                           <li key={m.id}>
+                             {m.id} {m.max_model_len ? `(ctx: ${m.max_model_len})` : ""}
+                           </li>
+                         ))}
+                       </ul>
+                     )}
+                   </>
+                 ) : (
+                   <div className="flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>Not reachable</span>
+                   </div>
+                 )}
+               </div>
+             );
+          })}
+        </div>
+
       </div>
     </details>
   );

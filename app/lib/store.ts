@@ -33,6 +33,7 @@ export interface AppState {
 
   // vLLM parsing
   vllmEndpoint: string;
+  vllmAdditionalEndpoints: string[];
   vllmModel: string;
   vllmPrompt: string;
 
@@ -93,6 +94,7 @@ export interface AppState {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
   scrollActiveStep: number | null;
+  theme: "light" | "dark" | "system";
 
   // ── API keys from env ─────────────────────────
   envKeys: {
@@ -135,6 +137,7 @@ export interface AppActions {
 
   // vLLM parsing
   setVllmEndpoint: (ep: string) => void;
+  setVllmAdditionalEndpoints: (eps: string[]) => void;
   setVllmModel: (model: string) => void;
   setVllmPrompt: (prompt: string) => void;
 
@@ -189,6 +192,7 @@ export interface AppActions {
   setSidebarCollapsed: (v: boolean) => void;
   setSidebarWidth: (w: number) => void;
   setScrollActiveStep: (step: number | null) => void;
+  setTheme: (theme: "light" | "dark" | "system") => void;
 
   // UI state
   setAllChunksCollapsed: (v: boolean) => void;
@@ -254,6 +258,7 @@ export const useAppStore = create<AppState & AppActions>()(
 
   // vLLM parsing
   vllmEndpoint: DEFAULT_VLLM_ENDPOINT,
+  vllmAdditionalEndpoints: [],
   vllmModel: "",
   vllmPrompt: "",
 
@@ -301,6 +306,7 @@ export const useAppStore = create<AppState & AppActions>()(
   sidebarCollapsed: false,
   sidebarWidth: 288,
   scrollActiveStep: null,
+  theme: "system",
   envKeys: { openrouter: "", voyage: "", pinecone: "" },
 
   // Persisted user preferences (initial empty — hydrated from localStorage)
@@ -408,6 +414,7 @@ export const useAppStore = create<AppState & AppActions>()(
   setOllamaPrompt: (prompt) => set({ ollamaPrompt: prompt }),
 
   setVllmEndpoint: (ep) => set({ vllmEndpoint: ep }),
+  setVllmAdditionalEndpoints: (eps) => set({ vllmAdditionalEndpoints: eps }),
   setVllmModel: (model) => set({ vllmModel: model }),
   setVllmPrompt: (prompt) => set({ vllmPrompt: prompt }),
 
@@ -485,6 +492,7 @@ export const useAppStore = create<AppState & AppActions>()(
   setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
   setSidebarWidth: (w) => set({ sidebarWidth: w }),
   setScrollActiveStep: (step) => set({ scrollActiveStep: step }),
+  setTheme: (theme) => set({ theme }),
 
   setEnvKeys: (keys) =>
     set((s) => ({ envKeys: { ...s.envKeys, ...keys } })),
@@ -517,6 +525,7 @@ export const useAppStore = create<AppState & AppActions>()(
       ollamaModel: s.ollamaModel || "",
       ollamaPrompt: "",
       vllmEndpoint: s.vllmEndpoint || DEFAULT_VLLM_ENDPOINT,
+      vllmAdditionalEndpoints: s.vllmAdditionalEndpoints || [],
       vllmModel: s.vllmModel || "",
       vllmPrompt: "",
       parsedContent: null,
@@ -630,6 +639,7 @@ export const useAppStore = create<AppState & AppActions>()(
 
         // vLLM parsing defaults
         vllmEndpoint: state.vllmEndpoint,
+        vllmAdditionalEndpoints: state.vllmAdditionalEndpoints,
         vllmModel: state.vllmModel,
 
         // Chunking parameters
@@ -654,6 +664,7 @@ export const useAppStore = create<AppState & AppActions>()(
         // UI preferences
         sidebarCollapsed: state.sidebarCollapsed,
         sidebarWidth: state.sidebarWidth,
+        theme: state.theme,
       }),
       /**
        * Merge persisted preferences into the initial state on hydration.

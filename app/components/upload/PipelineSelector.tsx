@@ -191,7 +191,7 @@ export default function PipelineSelector() {
                         ${
                           isSelected
                             ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                            : "border-silver-light bg-white hover:border-sandy/50 hover:bg-sandy/4"
+                            : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
                         }
                       `}
                     >

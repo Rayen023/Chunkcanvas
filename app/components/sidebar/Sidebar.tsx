@@ -5,6 +5,7 @@ import { useAppStore } from "@/app/lib/store";
 import AppInfo from "./AppInfo";
 import VllmStatus from "./VllmStatus";
 import OllamaStatus from "./OllamaStatus";
+import ThemeToggle from "./ThemeToggle";
 
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 480;
@@ -34,7 +35,7 @@ function ResetAllButton() {
           ? "border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
           : pineconeSuccess
             ? "border-sandy bg-sandy text-white hover:bg-sandy-dark animate-pulse shadow-md"
-            : "border-silver-light bg-white text-silver-dark hover:border-sandy hover:text-sandy"
+            : "border-silver-light bg-card text-silver-dark hover:border-sandy hover:text-sandy"
         }
       `}
     >
@@ -95,7 +96,7 @@ export default function Sidebar() {
     return (
       <button
         onClick={() => setCollapsed(false)}
-        className="fixed top-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-lg bg-white border border-silver-light shadow-md hover:shadow-lg hover:border-sandy transition-all duration-200 cursor-pointer group"
+        className="fixed top-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-lg bg-card border border-silver-light shadow-md hover:shadow-lg hover:border-sandy transition-all duration-200 cursor-pointer group"
         aria-label="Expand sidebar"
       >
         {/* CC logo mini */}
@@ -112,7 +113,7 @@ export default function Sidebar() {
       <aside
         ref={sidebarRef}
         style={{ width }}
-        className="relative hidden lg:flex flex-col border-r border-silver-light bg-white sticky top-0 h-screen overflow-hidden select-none flex-shrink-0"
+        className="relative hidden lg:flex flex-col border-r border-silver-light bg-card sticky top-0 h-screen overflow-hidden select-none flex-shrink-0"
       >
         {/* ── Header ──────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -153,7 +154,8 @@ export default function Sidebar() {
         </div>
 
         {/* ── Footer ──────────────────────────────────── */}
-        <div className="px-4 py-3 border-t border-silver-light space-y-2">
+        <div className="px-4 py-3 border-t border-silver-light space-y-3">
+          <ThemeToggle />
           <ResetAllButton />
           <p className="text-[10px] text-silver-dark text-center">
             ChunkCanvas &mdash; Rayen Ghali

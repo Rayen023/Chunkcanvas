@@ -10,9 +10,9 @@ MODEL_PATH="${1:-Qwen/Qwen3-VL-8B-Instruct-FP8}"
 # Qwen/Qwen3-VL-8B-Instruct-FP8
 # jinaai/jina-embeddings-v3
 source /home/recherche-a/OneDrive_recherche_a/Linux_onedrive/Projects_linux/chunkcanvas/backend/.venv/bin/activate
-
+ #0.85
 vllm serve $MODEL_PATH \
-  --gpu-memory-utilization 0.85 \
+  --gpu-memory-utilization 0.7 \
   --enforce-eager \
   --port 8002 \
   --trust-remote-code \

@@ -371,7 +371,7 @@ export default function Home() {
       </div>
 
       {/* ═══════ STEP 1 — Upload Files ═══════ */}
-      <section id="step-1" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+      <section id="step-1" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
         <h2 className="text-lg font-semibold text-gunmetal">
           <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
             1
@@ -384,7 +384,7 @@ export default function Home() {
 
       {/* ═══════ STEP 2 — Pipeline, Configure & Parse ═══════ */}
       {files.length > 0 && (
-        <section id="step-2" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+        <section id="step-2" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               2
@@ -459,7 +459,7 @@ export default function Home() {
 
       {/* ═══════ STEP 3 — Parsed Document & Chunking ═══════ */}
       {(parsedContent !== null) && (
-        <section id="step-3" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+        <section id="step-3" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               3
@@ -510,7 +510,7 @@ export default function Home() {
 
       {/* ═══════ STEP 4 — Editable Chunks ═══════ */}
       {editedChunks.length > 0 && (
-        <section id="step-4" className="bg-white rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+        <section id="step-4" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               4

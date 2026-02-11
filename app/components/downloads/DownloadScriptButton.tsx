@@ -78,7 +78,7 @@ export default function DownloadScriptButton({ stage, label }: Props) {
     <button
       onClick={handleDownload}
       disabled={downloading}
-      className="w-full flex items-center justify-center gap-2 rounded-lg bg-white border border-silver px-4 py-3 text-sm font-medium text-gunmetal hover:border-sandy transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+      className="w-full flex items-center justify-center gap-2 rounded-lg bg-card border border-silver px-4 py-3 text-sm font-medium text-gunmetal hover:border-sandy transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
     >
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
