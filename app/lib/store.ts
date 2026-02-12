@@ -8,6 +8,21 @@ import { persist } from "zustand/middleware";
 import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping, ExtPipelineConfig } from "./types";
 import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_SEPARATORS, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_VLLM_ENDPOINT, DEFAULT_VLLM_EMBEDDING_ENDPOINT } from "./constants";
 
+function fnv1a32(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  // unsigned
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function hashChunks(chunks: string[]): string {
+  // Include length + delimiter to reduce accidental collisions in simple joins.
+  return fnv1a32(`${chunks.length}\n${chunks.join("\u241E")}`);
+}
+
 export interface AppState {
   // ── Step 1 ────────────────────────────────────
   files: File[];
@@ -52,6 +67,8 @@ export interface AppState {
   // ── Multi-file tracking ───────────────────────
   parsedResults: ParsedFileResult[];
   currentProcessingFile: string;
+  /** In-memory cache of parse results keyed by file+pipeline+config. Cleared on Reset / Clear all files. */
+  parseCache: Record<string, ParsedFileResult>;
 
   // ── Step 3b — chunking ────────────────────────
   chunkingParams: ChunkingParams;
@@ -60,6 +77,8 @@ export interface AppState {
   editedChunks: string[];
   chunkSourceFiles: string[];
   isChunking: boolean;
+  /** Hash of the current `editedChunks` (used to detect whether embeddings match). */
+  chunksHash: string;
 
   // ── Step 6 — embeddings ───────────────────────
   embeddingProvider: EmbeddingProvider;
@@ -74,6 +93,12 @@ export interface AppState {
   vllmEmbeddingModel: string;
   vllmEmbeddingEndpoint: string;
   embeddingsData: number[][] | null;
+  /** The `chunksHash` that `embeddingsData` corresponds to (null when unknown/out-of-date). */
+  embeddingsForChunksHash: string | null;
+  /** Per-chunk embedding cache, keyed by provider/model/dims/endpoint + chunk text hash. */
+  embeddingChunkCache: Record<string, number[]>;
+  /** Metadata for the currently active `embeddingsData` (what actually generated it). */
+  embeddingsMeta: { provider: EmbeddingProvider; modelKey: string; dimensions: number; endpoint?: string } | null;
   isEmbedding: boolean;
   embeddingError: string | null;
 
@@ -153,6 +178,7 @@ export interface AppActions {
   setParseError: (err: string | null) => void;
   setParsedResults: (results: ParsedFileResult[]) => void;
   setCurrentProcessingFile: (name: string) => void;
+  setParseCache: (cache: Record<string, ParsedFileResult>) => void;
 
   // Step 3b
   setChunkingParams: (params: Partial<ChunkingParams>) => void;
@@ -177,6 +203,9 @@ export interface AppActions {
   setVllmEmbeddingModel: (model: string) => void;
   setVllmEmbeddingEndpoint: (ep: string) => void;
   setEmbeddingsData: (data: number[][] | null) => void;
+  setEmbeddingsForChunksHash: (h: string | null) => void;
+  setEmbeddingChunkCache: (cache: Record<string, number[]>) => void;
+  setEmbeddingsMeta: (meta: AppState["embeddingsMeta"]) => void;
   setIsEmbedding: (v: boolean) => void;
   setEmbeddingError: (err: string | null) => void;
 
@@ -275,6 +304,7 @@ export const useAppStore = create<AppState & AppActions>()(
   parseError: null,
   parsedResults: [],
   currentProcessingFile: "",
+  parseCache: {},
   chunkingParams: {
     chunkingType: "recursive",
     separators: DEFAULT_SEPARATORS,
@@ -284,6 +314,7 @@ export const useAppStore = create<AppState & AppActions>()(
   editedChunks: [],
   chunkSourceFiles: [],
   isChunking: false,
+  chunksHash: hashChunks([]),
   embeddingProvider: "openrouter",
   voyageApiKey: "",
   voyageModel: "voyage-4",
@@ -296,6 +327,9 @@ export const useAppStore = create<AppState & AppActions>()(
   vllmEmbeddingModel: "jinaai/jina-embeddings-v3",
   vllmEmbeddingEndpoint: DEFAULT_VLLM_EMBEDDING_ENDPOINT,
   embeddingsData: null,
+  embeddingsForChunksHash: null,
+  embeddingChunkCache: {},
+  embeddingsMeta: null,
   isEmbedding: false,
   embeddingError: null,
   pineconeApiKey: "",
@@ -336,16 +370,61 @@ export const useAppStore = create<AppState & AppActions>()(
       }
     }
     const vals = Object.values(newPipelinesByExt).filter(Boolean);
+    // Special case: clearing all files should clear transient session data.
+    if (files.length === 0) {
+      set({ files: [], pipeline: "", pipelinesByExt: {}, configByExt: {} });
+      set({
+        parsedContent: null,
+        parsedFilename: "",
+        parsedDocType: "",
+        parsedExcelRows: null,
+        parseError: null,
+        parseProgress: 0,
+        parseProgressMsg: "",
+        parsedResults: [],
+        currentProcessingFile: "",
+        parseCache: {},
+        editedChunks: [],
+        chunkSourceFiles: [],
+        isChunking: false,
+        chunksHash: hashChunks([]),
+        embeddingsData: null,
+        embeddingsForChunksHash: null,
+        embeddingError: null,
+        // Keep embeddingChunkCache? Clear on explicit clear-all to avoid surprising reuse across sessions.
+        embeddingChunkCache: {},
+        pineconeSuccess: null,
+        pineconeError: null,
+      });
+      return;
+    }
+
     set({ files, pipeline: vals[0] || "", pipelinesByExt: newPipelinesByExt, configByExt: newConfigByExt });
-    get().resetDownstream(2);
   },
   addFiles: (newFiles) => {
-    set((s) => ({ files: [...s.files, ...newFiles] }));
-    get().resetDownstream(2);
+    const state = get();
+    const nextFiles = [...state.files, ...newFiles];
+
+    // Seed pipeline/config from last-used preferences for each new extension
+    const nextPipelinesByExt = { ...state.pipelinesByExt };
+    const nextConfigByExt = { ...state.configByExt };
+    for (const f of newFiles) {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!ext) continue;
+      if (!nextPipelinesByExt[ext] && state.lastPipelineByExt[ext]) {
+        nextPipelinesByExt[ext] = state.lastPipelineByExt[ext];
+      }
+      if (!nextConfigByExt[ext] && state.lastConfigByExt[ext]) {
+        nextConfigByExt[ext] = { ...state.lastConfigByExt[ext] };
+      }
+    }
+    const vals = Object.values(nextPipelinesByExt).filter(Boolean);
+    set({ files: nextFiles, pipelinesByExt: nextPipelinesByExt, configByExt: nextConfigByExt, pipeline: vals[0] || state.pipeline || "" });
   },
   removeFile: (index) => {
     set((s) => {
       const next = s.files.filter((_, i) => i !== index);
+      const removed = s.files[index];
       const remainingExts = new Set(next.map(f => f.name.split(".").pop()?.toLowerCase() ?? ""));
       const nextPipelines = { ...s.pipelinesByExt };
       const nextConfig = { ...s.configByExt };
@@ -356,13 +435,75 @@ export const useAppStore = create<AppState & AppActions>()(
         }
       }
       const vals = Object.values(nextPipelines).filter(Boolean);
-      return { files: next, pipelinesByExt: nextPipelines, pipeline: vals[0] || "", configByExt: nextConfig };
+
+      // Also remove any active parsed results for this file; keep cache entries for other files.
+      const removedName = removed?.name;
+      const nextParsedResults = removedName
+        ? s.parsedResults.filter((r) => r.filename !== removedName)
+        : s.parsedResults;
+
+      // Best-effort: drop cached parses for the removed filename to avoid unbounded growth.
+      const nextParseCache: Record<string, ParsedFileResult> = {};
+      for (const [k, v] of Object.entries(s.parseCache)) {
+        if (removedName && v.filename === removedName) continue;
+        nextParseCache[k] = v;
+      }
+
+      // Remove chunks sourced from the removed file.
+      let nextEditedChunks = s.editedChunks;
+      let nextChunkSources = s.chunkSourceFiles;
+      if (removedName && s.chunkSourceFiles.length === s.editedChunks.length) {
+        const keepIdx: number[] = [];
+        for (let i = 0; i < s.chunkSourceFiles.length; i++) {
+          if (s.chunkSourceFiles[i] !== removedName) keepIdx.push(i);
+        }
+        nextEditedChunks = keepIdx.map((i) => s.editedChunks[i]);
+        nextChunkSources = keepIdx.map((i) => s.chunkSourceFiles[i]);
+      }
+      const nextChunksHash = hashChunks(nextEditedChunks);
+
+      // Recompute combined parsedContent from remaining parsed results (if present)
+      const combinedContent = nextParsedResults
+        .map((r) => (nextParsedResults.length > 1 ? `\n═══ ${r.filename} ═══\n${r.content}` : r.content))
+        .join("\n\n");
+
+      const nextParsedFilename =
+        nextParsedResults.length === 0
+          ? ""
+          : nextParsedResults.length === 1
+            ? nextParsedResults[0].filename
+            : `${nextParsedResults.length} files`;
+      const uniquePipelines = [...new Set(nextParsedResults.map((r) => r.pipeline))];
+      const nextParsedDocType =
+        nextParsedResults.length === 0
+          ? ""
+          : uniquePipelines.length === 1
+            ? uniquePipelines[0]
+            : "Mixed pipelines";
+      const allExcelRows = nextParsedResults.filter((r) => r.excelRows).flatMap((r) => r.excelRows ?? []);
+
+      return {
+        files: next,
+        pipelinesByExt: nextPipelines,
+        pipeline: vals[0] || "",
+        configByExt: nextConfig,
+        parsedResults: nextParsedResults,
+        parsedContent: nextParsedResults.length > 0 ? combinedContent : s.parsedContent,
+        parsedFilename: nextParsedFilename,
+        parsedDocType: nextParsedDocType,
+        parsedExcelRows: allExcelRows.length > 0 ? allExcelRows : null,
+        parseCache: nextParseCache,
+        editedChunks: nextEditedChunks,
+        chunkSourceFiles: nextChunkSources,
+        chunksHash: nextChunksHash,
+        // Mark embeddings as potentially stale if chunks changed
+        embeddingsForChunksHash: null,
+        pineconeSuccess: null,
+      };
     });
-    get().resetDownstream(2);
   },
   setPipeline: (pipeline) => {
     set({ pipeline });
-    get().resetDownstream(2);
   },
   setPipelineForExt: (ext, p) => {
     set((s) => {
@@ -432,39 +573,43 @@ export const useAppStore = create<AppState & AppActions>()(
   setParseError: (err) => set({ parseError: err }),
   setParsedResults: (results) => set({ parsedResults: results }),
   setCurrentProcessingFile: (name) => set({ currentProcessingFile: name }),
+  setParseCache: (cache) => set({ parseCache: cache }),
 
   setChunkingParams: (params) =>
     set((s) => ({
       chunkingParams: { ...s.chunkingParams, ...params },
     })),
 
-  setEditedChunks: (chunks) => set({ editedChunks: chunks }),
+  setEditedChunks: (chunks) =>
+    set({
+      editedChunks: chunks,
+      chunksHash: hashChunks(chunks),
+      // Embeddings now correspond to a different chunk set until regenerated.
+      embeddingsForChunksHash: null,
+      pineconeSuccess: null,
+    }),
   updateChunk: (index, text) =>
     set((s) => {
       const next = [...s.editedChunks];
       next[index] = text;
-      // Reset embeddings when chunks are edited
       return {
         editedChunks: next,
-        embeddingsData: null,
-        embeddingError: null,
+        chunksHash: hashChunks(next),
+        embeddingsForChunksHash: null,
         pineconeSuccess: null,
-        pineconeError: null,
       };
     }),
   deleteChunk: (index) =>
     set((s) => ({
       editedChunks: s.editedChunks.filter((_, i) => i !== index),
-      // Reset embeddings when chunks are deleted
-      embeddingsData: null,
-      embeddingError: null,
+      chunksHash: hashChunks(s.editedChunks.filter((_, i) => i !== index)),
+      embeddingsForChunksHash: null,
       pineconeSuccess: null,
-      pineconeError: null,
     })),
   setIsChunking: (v) => set({ isChunking: v }),
   setChunkSourceFiles: (files) => set({ chunkSourceFiles: files }),
 
-  setEmbeddingProvider: (provider) => set({ embeddingProvider: provider, embeddingsData: null, embeddingError: null, lastEmbeddingProvider: provider }),
+  setEmbeddingProvider: (provider) => set({ embeddingProvider: provider, lastEmbeddingProvider: provider }),
   setVoyageApiKey: (key) => set({ voyageApiKey: key }),
   setVoyageModel: (model) => set({ voyageModel: model }),
   setCohereApiKey: (key) => set({ cohereApiKey: key }),
@@ -475,7 +620,10 @@ export const useAppStore = create<AppState & AppActions>()(
   setOllamaEmbeddingEndpoint: (ep) => set({ ollamaEmbeddingEndpoint: ep }),
   setVllmEmbeddingModel: (model) => set({ vllmEmbeddingModel: model }),
   setVllmEmbeddingEndpoint: (ep) => set({ vllmEmbeddingEndpoint: ep }),
-  setEmbeddingsData: (data) => set({ embeddingsData: data }),
+  setEmbeddingsData: (data) => set({ embeddingsData: data, embeddingsForChunksHash: data ? get().chunksHash : null }),
+  setEmbeddingsForChunksHash: (h) => set({ embeddingsForChunksHash: h }),
+  setEmbeddingChunkCache: (cache) => set({ embeddingChunkCache: cache }),
+  setEmbeddingsMeta: (meta) => set({ embeddingsMeta: meta }),
   setIsEmbedding: (v) => set({ isEmbedding: v }),
   setEmbeddingError: (err) => set({ embeddingError: err }),
 
@@ -549,6 +697,7 @@ export const useAppStore = create<AppState & AppActions>()(
       parsedExcelRows: null,
       parsedResults: [],
       currentProcessingFile: "",
+      parseCache: {},
       isParsing: false,
       parseProgress: 0,
       parseProgressMsg: "",
@@ -557,6 +706,7 @@ export const useAppStore = create<AppState & AppActions>()(
       editedChunks: [],
       chunkSourceFiles: [],
       isChunking: false,
+      chunksHash: hashChunks([]),
       embeddingProvider: s.lastEmbeddingProvider || "openrouter",
       voyageApiKey: s.envKeys.voyage || s.voyageApiKey || "",
       voyageModel: s.voyageModel || "voyage-4",
@@ -569,6 +719,9 @@ export const useAppStore = create<AppState & AppActions>()(
       vllmEmbeddingModel: s.vllmEmbeddingModel || "",
       vllmEmbeddingEndpoint: s.vllmEmbeddingEndpoint || DEFAULT_VLLM_EMBEDDING_ENDPOINT,
       embeddingsData: null,
+      embeddingsForChunksHash: null,
+      embeddingChunkCache: {},
+      embeddingsMeta: null,
       isEmbedding: false,
       embeddingError: null,
       pineconeApiKey: s.envKeys.pinecone || s.pineconeApiKey || "",
@@ -609,7 +762,8 @@ export const useAppStore = create<AppState & AppActions>()(
       resets.chunkSourceFiles = [];
     }
     if (fromStep <= 4) {
-      resets.embeddingsData = null;
+      // Keep embeddings caches/history; only mark active embeddings as out-of-date.
+      resets.embeddingsForChunksHash = null;
       resets.embeddingError = null;
     }
     if (fromStep <= 5) {
@@ -709,11 +863,16 @@ export const useAppStore = create<AppState & AppActions>()(
           parseError: null,
           parsedResults: [],
           currentProcessingFile: "",
+          parseCache: {},
           editedChunks: [],
           chunkSourceFiles: [],
           isChunking: false,
+          chunksHash: hashChunks([]),
           embeddingsData: null,
           isEmbedding: false,
+          embeddingsForChunksHash: null,
+          embeddingChunkCache: {},
+          embeddingsMeta: null,
           embeddingError: null,
           pineconeIndexes: [],
           pineconeNamespaces: [],

@@ -53,6 +53,27 @@ export default function Home() {
 
   const abortRef = useRef<AbortController | null>(null);
 
+  const buildParseCacheKey = useCallback((file: File, filePipeline: string, cfg: ReturnType<typeof defaultExtConfig>) => {
+    const fileFingerprint = `${file.name}|${file.size}|${file.lastModified}`;
+    // Keep only config fields that affect parsing output.
+    const relevantCfg: Record<string, unknown> = {
+      openrouterModel: cfg.openrouterModel,
+      openrouterPrompt: cfg.openrouterPrompt,
+      openrouterPagesPerBatch: cfg.openrouterPagesPerBatch,
+      pdfEngine: cfg.pdfEngine,
+      ollamaEndpoint: cfg.ollamaEndpoint,
+      ollamaModel: cfg.ollamaModel,
+      ollamaPrompt: cfg.ollamaPrompt,
+      vllmEndpoint: cfg.vllmEndpoint,
+      vllmModel: cfg.vllmModel,
+      vllmPrompt: cfg.vllmPrompt,
+      excelSheet: cfg.excelSheet,
+      excelColumn: cfg.excelColumn,
+    };
+    // Stable stringify (keys are fixed, so JSON.stringify is stable enough here)
+    return `v1|${fileFingerprint}|p:${filePipeline}|cfg:${JSON.stringify(relevantCfg)}`;
+  }, []);
+
   // ── Cancel Processing ───────────────────────────────────────
   const handleCancel = useCallback(() => {
     if (abortRef.current) {
@@ -78,18 +99,21 @@ export default function Home() {
     state.setIsParsing(true);
     state.setParseError(null);
     state.setParseProgress(0, "Initializing...");
-    state.resetDownstream(2);
-    state.setParsedResults([]);
+
+    // We keep prior parsed results and embeddings unless the user explicitly Reset/Clear-all.
+    // This run will update/append parse results for the current file list as needed.
 
     const anyLocalPdf = Object.values(state.pipelinesByExt).some(
       (p) => p === PIPELINE.OLLAMA_PDF || p === PIPELINE.VLLM_PDF,
     );
     if (anyLocalPdf) {
-      state.setParsedContent("");
+      // Ensure UI can show live streaming progress for local PDF parsing.
+      if (state.parsedContent === null) state.setParsedContent("");
     }
 
     const { parseDocument } = await import("@/app/lib/parsers");
     const parsedResults: ParsedFileResult[] = [];
+    const nextParseCache: Record<string, ParsedFileResult> = { ...state.parseCache };
     const totalFiles = state.files.length;
 
     for (let fileIdx = 0; fileIdx < totalFiles; fileIdx++) {
@@ -99,6 +123,9 @@ export default function Home() {
       const fileExt = currentFile.name.split(".").pop()?.toLowerCase() ?? "";
       const filePipeline = state.pipelinesByExt[fileExt] || state.pipeline;
       const cfg = state.configByExt[fileExt] ?? defaultExtConfig();
+
+      const cacheKey = buildParseCacheKey(currentFile, filePipeline, cfg);
+      const cached = nextParseCache[cacheKey];
 
       state.setCurrentProcessingFile(currentFile.name);
       const baseProgress = (fileIdx / totalFiles) * 100;
@@ -113,6 +140,22 @@ export default function Home() {
       const streamingPages: Map<number, string> = new Map();
 
       try {
+        if (cached) {
+          parsedResults.push({ ...cached, cacheKey });
+
+          const combinedContent = parsedResults
+            .map((r) => (totalFiles > 1 ? `\n═══ ${r.filename} ═══\n${r.content}` : r.content))
+            .join("\n\n");
+          state.setParsedContent(combinedContent);
+          state.setParsedResults([...parsedResults]);
+
+          state.setParseProgress(
+            baseProgress + fileProgressRange,
+            `[${fileIdx + 1}/${totalFiles}] ${currentFile.name} — Reused cached parse`,
+          );
+          continue;
+        }
+
         const result = await parseDocument({
           pipeline: filePipeline,
           file: currentFile,
@@ -160,7 +203,16 @@ export default function Home() {
           content: result.content,
           excelRows: result.excelRows,
           pipeline: filePipeline,
+          cacheKey,
         });
+
+        nextParseCache[cacheKey] = {
+          filename: currentFile.name,
+          content: result.content,
+          excelRows: result.excelRows,
+          pipeline: filePipeline,
+          cacheKey,
+        };
 
         const combinedContent = parsedResults
           .map((r) => (totalFiles > 1 ? `\n═══ ${r.filename} ═══\n${r.content}` : r.content))
@@ -187,9 +239,10 @@ export default function Home() {
       }
     }
 
+    state.setParseCache(nextParseCache);
     state.setIsParsing(false);
     state.setCurrentProcessingFile("");
-  }, []);
+  }, [buildParseCacheKey]);
 
   // ── Chunk Document(s) — each file chunked independently ──
   const handleChunk = useCallback(async () => {
@@ -198,7 +251,6 @@ export default function Home() {
     if (results.length === 0 && !state.parsedContent) return;
 
     state.setIsChunking(true);
-    state.resetDownstream(4);
 
     try {
       const { chunkText, chunkExcelRows } = await import("@/app/lib/chunking");

@@ -153,6 +153,8 @@ export interface ParsedFileResult {
   content: string;
   excelRows?: string[];
   pipeline: string;
+  /** Internal cache key used to reuse parses when settings match. */
+  cacheKey?: string;
 }
 
 // ─── Pinecone Field Mapping ────────────────────────────────────────────

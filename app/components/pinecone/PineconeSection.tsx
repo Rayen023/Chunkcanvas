@@ -12,6 +12,8 @@ export default function PineconeSection() {
   const chunkSourceFiles = useAppStore((s) => s.chunkSourceFiles);
   const parsedFilename = useAppStore((s) => s.parsedFilename);
   const embeddingsData = useAppStore((s) => s.embeddingsData);
+  const chunksHash = useAppStore((s) => s.chunksHash);
+  const embeddingsForChunksHash = useAppStore((s) => s.embeddingsForChunksHash);
   const pipeline = useAppStore((s) => s.pipeline);
   
   // Script dependencies
@@ -71,7 +73,11 @@ export default function PineconeSection() {
   }, [pineconeApiKey, envPineconeKey, setPineconeApiKey]);
 
   // Check if we have valid pre-generated embeddings
-  const hasEmbeddings = embeddingsData && embeddingsData.length === editedChunks.length;
+  const hasEmbeddings =
+    !!embeddingsData &&
+    embeddingsData.length === editedChunks.length &&
+    !!embeddingsForChunksHash &&
+    embeddingsForChunksHash === chunksHash;
 
   // Fetch indexes when API key is set
   const fetchIndexes = useCallback(async () => {

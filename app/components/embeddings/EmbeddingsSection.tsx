@@ -9,6 +9,26 @@ import type { EmbeddingsJson } from "@/app/lib/types";
 import type { ScriptConfig } from "@/app/lib/script-generator";
 import { PIPELINE } from "@/app/lib/constants";
 
+function fnv1a32(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function chunkEmbeddingCacheKey(opts: {
+  provider: string;
+  modelKey: string;
+  dimensions: number;
+  endpoint?: string;
+  chunkText: string;
+}): string {
+  const endpointPart = opts.endpoint ? `|ep:${opts.endpoint}` : "";
+  return `v1|p:${opts.provider}|m:${opts.modelKey}|d:${opts.dimensions}${endpointPart}|t:${fnv1a32(opts.chunkText)}`;
+}
+
 interface OllamaEmbedModel {
   name: string;
   parameterSize?: string;
@@ -97,6 +117,10 @@ export default function EmbeddingsSection() {
 
   // Shared embedding state
   const embeddingsData = useAppStore((s) => s.embeddingsData);
+  const embeddingsMeta = useAppStore((s) => s.embeddingsMeta);
+  const embeddingChunkCache = useAppStore((s) => s.embeddingChunkCache);
+  const setEmbeddingChunkCache = useAppStore((s) => s.setEmbeddingChunkCache);
+  const setEmbeddingsMeta = useAppStore((s) => s.setEmbeddingsMeta);
   const isEmbedding = useAppStore((s) => s.isEmbedding);
   const embeddingError = useAppStore((s) => s.embeddingError);
   const setEmbeddingsData = useAppStore((s) => s.setEmbeddingsData);
@@ -263,64 +287,144 @@ export default function EmbeddingsSection() {
     return openrouterEmbeddingModel;
   }, [embeddingProvider, voyageModel, cohereModel, openrouterEmbeddingModel, ollamaEmbeddingModel, vllmEmbeddingModel]);
 
+  const embeddingDimsForCache = useMemo(() => {
+    if (embeddingProvider === "voyage") {
+      return VOYAGE_MODELS.find((m) => m.key === voyageModel)?.dimensions ?? 0;
+    }
+    if (embeddingProvider === "cohere") {
+      return COHERE_MODELS.find((m) => m.key === cohereModel)?.dimensions ?? 0;
+    }
+    // For providers that allow overriding dims, include the requested dims in the cache key.
+    return embeddingDimensions > 0 ? embeddingDimensions : 0;
+  }, [embeddingProvider, voyageModel, cohereModel, embeddingDimensions]);
+
   // Generate embeddings
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
     setIsEmbedding(true);
     setEmbeddingError(null);
+
+    const endpointForCache =
+      embeddingProvider === "ollama"
+        ? ollamaEmbeddingEndpoint
+        : embeddingProvider === "vllm"
+          ? vllmEmbeddingEndpoint
+          : undefined;
+
+    const meta = {
+      provider: embeddingProvider,
+      modelKey: embeddingModelKey,
+      dimensions: embeddingDimsForCache,
+      endpoint: endpointForCache,
+    };
+
+    // Assemble from cache first; only call the provider for missing chunks.
+    const nextCache: Record<string, number[]> = { ...embeddingChunkCache };
+    const assembled: Array<number[] | null> = new Array(editedChunks.length).fill(null);
+    const missingTexts: string[] = [];
+    const missingIndices: number[] = [];
+
+    for (let i = 0; i < editedChunks.length; i++) {
+      const text = editedChunks[i];
+      const k = chunkEmbeddingCacheKey({
+        provider: embeddingProvider,
+        modelKey: embeddingModelKey,
+        dimensions: embeddingDimsForCache,
+        endpoint: endpointForCache,
+        chunkText: text,
+      });
+      const cached = nextCache[k];
+      if (cached) {
+        assembled[i] = cached;
+      } else {
+        missingTexts.push(text);
+        missingIndices.push(i);
+      }
+    }
+
+    if (missingTexts.length === 0) {
+      setEmbeddingsMeta(meta);
+      setEmbeddingsData(assembled as number[][]);
+      setIsEmbedding(false);
+      return;
+    }
+
+    // Show loading state by clearing the active embeddings only when we actually need to compute.
     setEmbeddingsData(null);
 
     try {
+      let newEmbeddings: number[][] = [];
       if (embeddingProvider === "voyage") {
         const { generateEmbeddings } = await import("@/app/lib/voyage");
-        const embeddings = await generateEmbeddings(
+        newEmbeddings = await generateEmbeddings(
           voyageApiKey,
           voyageModel,
-          editedChunks,
+          missingTexts,
         );
-        setEmbeddingsData(embeddings);
       } else if (embeddingProvider === "cohere") {
         const { generateEmbeddings } = await import("@/app/lib/cohere");
-        const embeddings = await generateEmbeddings(
+        newEmbeddings = await generateEmbeddings(
           cohereApiKey,
           cohereModel,
-          editedChunks,
+          missingTexts,
         );
-        setEmbeddingsData(embeddings);
       } else if (embeddingProvider === "ollama") {
         const { generateOllamaEmbeddings } = await import("@/app/lib/ollama");
         const dims = embeddingDimensions > 0 ? embeddingDimensions : undefined;
-        const embeddings = await generateOllamaEmbeddings(
+        newEmbeddings = await generateOllamaEmbeddings(
           ollamaEmbeddingModel,
-          editedChunks,
+          missingTexts,
           ollamaEmbeddingEndpoint,
           undefined, // batchSize — use default
           dims,
         );
-        setEmbeddingsData(embeddings);
       } else if (embeddingProvider === "vllm") {
         const { generateVllmEmbeddings } = await import("@/app/lib/vllm");
         const dims = embeddingDimensions > 0 ? embeddingDimensions : undefined;
-        const embeddings = await generateVllmEmbeddings(
+        newEmbeddings = await generateVllmEmbeddings(
           vllmEmbeddingModel,
-          editedChunks,
+          missingTexts,
           vllmEmbeddingEndpoint,
           undefined, // batchSize
           dims,
         );
-        setEmbeddingsData(embeddings);
       } else {
         const { generateOpenRouterEmbeddings } = await import("@/app/lib/openrouter");
         const dims = embeddingDimensions > 0 ? embeddingDimensions : undefined;
-        const embeddings = await generateOpenRouterEmbeddings(
+        newEmbeddings = await generateOpenRouterEmbeddings(
           openrouterApiKey,
           openrouterEmbeddingModel,
-          editedChunks,
+          missingTexts,
           undefined, // batchSize — use default
           dims,
         );
-        setEmbeddingsData(embeddings);
       }
+
+      if (newEmbeddings.length !== missingTexts.length) {
+        throw new Error(
+          `Embedding provider returned ${newEmbeddings.length} embeddings for ${missingTexts.length} chunks`,
+        );
+      }
+
+      // Fill missing slots + update cache
+      for (let j = 0; j < missingIndices.length; j++) {
+        const idx = missingIndices[j];
+        const text = editedChunks[idx];
+        const emb = newEmbeddings[j];
+        assembled[idx] = emb;
+        const k = chunkEmbeddingCacheKey({
+          provider: embeddingProvider,
+          modelKey: embeddingModelKey,
+          dimensions: embeddingDimsForCache,
+          endpoint: endpointForCache,
+          chunkText: text,
+        });
+        nextCache[k] = emb;
+      }
+
+      setEmbeddingChunkCache(nextCache);
+      setEmbeddingsMeta(meta);
+      setEmbeddingsData(assembled as number[][]);
     } catch (err) {
       setEmbeddingError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -335,7 +439,9 @@ export default function EmbeddingsSection() {
     vllmEmbeddingModel, vllmEmbeddingEndpoint,
     embeddingDimensions,
     editedChunks,
-    setIsEmbedding, setEmbeddingError, setEmbeddingsData,
+    embeddingChunkCache, setEmbeddingChunkCache,
+    embeddingModelKey, embeddingDimsForCache,
+    setIsEmbedding, setEmbeddingError, setEmbeddingsData, setEmbeddingsMeta,
   ]);
 
   // Download embeddings JSON
@@ -344,11 +450,12 @@ export default function EmbeddingsSection() {
     setDownloadingJson(true);
     try {
       const dims = embeddingsData[0]?.length ?? 0;
+      const modelForMetadata = embeddingsMeta?.modelKey ?? embeddingModelKey;
       const data: EmbeddingsJson = {
         metadata: {
           source_file: parsedFilename,
           pipeline,
-          embedding_model: embeddingModelKey,
+          embedding_model: modelForMetadata,
           num_chunks: editedChunks.length,
           embedding_dimensions: dims,
         },
@@ -364,7 +471,7 @@ export default function EmbeddingsSection() {
     } finally {
       setDownloadingJson(false);
     }
-  }, [embeddingsData, editedChunks, parsedFilename, pipeline, embeddingModelKey]);
+  }, [embeddingsData, editedChunks, parsedFilename, pipeline, embeddingModelKey, embeddingsMeta]);
 
   const handleGenerateScript = useCallback(async () => {
     setGeneratingScript(true);
