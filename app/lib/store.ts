@@ -120,6 +120,7 @@ export interface AppState {
   chromaApiKey: string;
   chromaTenant: string;
   chromaDatabase: string;
+  chromaDatabases: string[];
   chromaCollectionName: string;
   chromaCollections: string[];
   isUploadingChroma: boolean;
@@ -238,6 +239,7 @@ export interface AppActions {
   setChromaApiKey: (key: string) => void;
   setChromaTenant: (tenant: string) => void;
   setChromaDatabase: (db: string) => void;
+  setChromaDatabases: (databases: string[]) => void;
   setChromaCollectionName: (name: string) => void;
   setChromaCollections: (collections: string[]) => void;
   setIsUploadingChroma: (v: boolean) => void;
@@ -369,7 +371,8 @@ export const useAppStore = create<AppState & AppActions>()(
   chromaLocalUrl: "http://localhost:8000",
   chromaApiKey: "",
   chromaTenant: "",
-  chromaDatabase: "",
+  chromaDatabase: "default_database",
+  chromaDatabases: [],
   chromaCollectionName: "",
   chromaCollections: [],
   isUploadingChroma: false,
@@ -766,6 +769,7 @@ export const useAppStore = create<AppState & AppActions>()(
   setChromaApiKey: (key) => set({ chromaApiKey: key }),
   setChromaTenant: (tenant) => set({ chromaTenant: tenant }),
   setChromaDatabase: (db) => set({ chromaDatabase: db }),
+  setChromaDatabases: (databases) => set({ chromaDatabases: databases }),
   setChromaCollectionName: (name) => set({ chromaCollectionName: name }),
   setChromaCollections: (collections) => set({ chromaCollections: collections }),
   setIsUploadingChroma: (v) => set({ isUploadingChroma: v }),
@@ -869,7 +873,8 @@ export const useAppStore = create<AppState & AppActions>()(
       chromaLocalUrl: s.chromaLocalUrl || "http://localhost:8000",
       chromaApiKey: "",
       chromaTenant: s.chromaTenant || "",
-      chromaDatabase: s.chromaDatabase || "",
+      chromaDatabase: s.chromaDatabase || "default_database",
+      chromaDatabases: [],
       chromaCollectionName: s.chromaCollectionName || "",
       chromaCollections: [],
       isUploadingChroma: false,
@@ -977,6 +982,7 @@ export const useAppStore = create<AppState & AppActions>()(
         // Chroma settings
         chromaMode: state.chromaMode,
         chromaLocalUrl: state.chromaLocalUrl,
+        chromaDatabase: state.chromaDatabase,
         chromaCollectionName: state.chromaCollectionName,
 
         // Chunking settings

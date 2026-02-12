@@ -48,6 +48,7 @@ export default function PineconeSection() {
   const chromaApiKey = useAppStore((s) => s.chromaApiKey);
   const chromaTenant = useAppStore((s) => s.chromaTenant);
   const chromaDatabase = useAppStore((s) => s.chromaDatabase);
+  const chromaDatabases = useAppStore((s) => s.chromaDatabases);
   const chromaCollectionName = useAppStore((s) => s.chromaCollectionName);
   const chromaCollections = useAppStore((s) => s.chromaCollections);
   const isUploadingChroma = useAppStore((s) => s.isUploadingChroma);
@@ -69,6 +70,7 @@ export default function PineconeSection() {
   const setChromaApiKey = useAppStore((s) => s.setChromaApiKey);
   const setChromaTenant = useAppStore((s) => s.setChromaTenant);
   const setChromaDatabase = useAppStore((s) => s.setChromaDatabase);
+  const setChromaDatabases = useAppStore((s) => s.setChromaDatabases);
   const setChromaCollectionName = useAppStore((s) => s.setChromaCollectionName);
   const setChromaCollections = useAppStore((s) => s.setChromaCollections);
   const setIsUploadingChroma = useAppStore((s) => s.setIsUploadingChroma);
@@ -88,6 +90,9 @@ export default function PineconeSection() {
   const [showCreateChromaCollection, setShowCreateChromaCollection] = useState(false);
   const [creatingChromaCollection, setCreatingChromaCollection] = useState(false);
   const [newChromaCollection, setNewChromaCollection] = useState("");
+  const [showCreateChromaDatabase, setShowCreateChromaDatabase] = useState(false);
+  const [creatingChromaDatabase, setCreatingChromaDatabase] = useState(false);
+  const [newChromaDatabase, setNewChromaDatabase] = useState("");
 
   // DB selection state
   const [selectedDb, setSelectedDb] = useState<"pinecone" | "chroma" | "mongodb" | "faiss">("pinecone");
@@ -126,19 +131,62 @@ export default function PineconeSection() {
     fetchIndexes();
   }, [fetchIndexes]);
 
-  const fetchChromaCollections = useCallback(async () => {
+  const buildChromaHeaders = useCallback(() => {
+    if (chromaMode !== "cloud") return undefined;
+    const headers: Record<string, string> = {};
+    if (chromaApiKey) headers["x-chroma-api-key"] = chromaApiKey;
+    if (chromaTenant) headers["x-chroma-tenant"] = chromaTenant;
+    return Object.keys(headers).length > 0 ? headers : undefined;
+  }, [chromaMode, chromaApiKey, chromaTenant]);
+
+  const fetchChromaDatabases = useCallback(async () => {
     try {
-      setChromaError(null);
       const query = new URLSearchParams({ mode: chromaMode });
       if (chromaMode === "local" && chromaLocalUrl.trim()) {
         query.set("localUrl", chromaLocalUrl.trim());
       }
+      const response = await fetch(`/api/chroma/databases?${query.toString()}`, {
+        headers: buildChromaHeaders(),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Failed to list databases");
+      }
+      const databases: string[] = json.databases || [];
+      setChromaDatabases(databases);
+      if (databases.length > 0 && !chromaDatabase) {
+        setChromaDatabase(databases.includes("default_database") ? "default_database" : databases[0]);
+      }
+    } catch (err) {
+      setChromaDatabases([]);
+      setChromaError(err instanceof Error ? err.message : String(err));
+    }
+  }, [
+    chromaMode,
+    chromaLocalUrl,
+    buildChromaHeaders,
+    chromaDatabase,
+    setChromaDatabase,
+    setChromaDatabases,
+    setChromaError,
+  ]);
+
+  const fetchChromaCollections = useCallback(async () => {
+    if (!chromaDatabase) return;
+    try {
+      setChromaError(null);
+      const query = new URLSearchParams({ mode: chromaMode, database: chromaDatabase });
+      if (chromaMode === "local" && chromaLocalUrl.trim()) {
+        query.set("localUrl", chromaLocalUrl.trim());
+      }
+      const headers: Record<string, string> = {};
+      if (chromaMode === "cloud") {
+        if (chromaApiKey) headers["x-chroma-api-key"] = chromaApiKey;
+        if (chromaTenant) headers["x-chroma-tenant"] = chromaTenant;
+        headers["x-chroma-database"] = chromaDatabase;
+      }
       const response = await fetch(`/api/chroma/collections?${query.toString()}`, {
-        headers: chromaMode === "cloud" ? {
-          "x-chroma-api-key": chromaApiKey,
-          "x-chroma-tenant": chromaTenant,
-          "x-chroma-database": chromaDatabase,
-        } : undefined,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
       });
       const json = await response.json();
       if (!response.ok || !json.success) {
@@ -167,8 +215,13 @@ export default function PineconeSection() {
 
   useEffect(() => {
     if (selectedDb !== "chroma") return;
+    fetchChromaDatabases();
+  }, [selectedDb, chromaMode, chromaLocalUrl, chromaApiKey, chromaTenant, fetchChromaDatabases]);
+
+  useEffect(() => {
+    if (selectedDb !== "chroma" || !chromaDatabase) return;
     fetchChromaCollections();
-  }, [selectedDb, chromaMode, chromaLocalUrl, chromaApiKey, chromaTenant, chromaDatabase, fetchChromaCollections]);
+  }, [selectedDb, chromaDatabase, fetchChromaCollections]);
 
   // Fetch namespaces when index is set
   useEffect(() => {
@@ -283,7 +336,7 @@ export default function PineconeSection() {
           localUrl: chromaMode === "local" ? chromaLocalUrl : undefined,
           cloudApiKey: chromaMode === "cloud" ? chromaApiKey : undefined,
           cloudTenant: chromaMode === "cloud" ? chromaTenant : undefined,
-          cloudDatabase: chromaMode === "cloud" ? chromaDatabase : undefined,
+          cloudDatabase: chromaDatabase,
           name: newChromaCollection.trim(),
           getOrCreate: true,
         }),
@@ -339,7 +392,7 @@ export default function PineconeSection() {
           localUrl: chromaMode === "local" ? chromaLocalUrl : undefined,
           cloudApiKey: chromaMode === "cloud" ? chromaApiKey : undefined,
           cloudTenant: chromaMode === "cloud" ? chromaTenant : undefined,
-          cloudDatabase: chromaMode === "cloud" ? chromaDatabase : undefined,
+          cloudDatabase: chromaDatabase,
           collectionName: chromaCollectionName,
           createIfMissing: true,
           ids,
@@ -925,11 +978,8 @@ export default function PineconeSection() {
 
           {chromaMode === "cloud" && (
             <div className="space-y-3">
-              <p className="text-xs text-silver-dark">
-                Chroma Cloud credentials are not persisted. They can be loaded from `NEXT_PUBLIC_CHROMA_*` env vars or entered below.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="md:col-span-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
                   <label className="block text-sm font-medium text-gunmetal mb-1">Chroma API Key</label>
                   <input
                     type="password"
@@ -940,7 +990,7 @@ export default function PineconeSection() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gunmetal mb-1">Tenant</label>
+                  <label className="block text-sm font-medium text-gunmetal mb-1">Tenant ID</label>
                   <input
                     type="text"
                     value={chromaTenant}
@@ -948,19 +998,136 @@ export default function PineconeSection() {
                     placeholder="tenant-id"
                     className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gunmetal mb-1">Database</label>
-                  <input
-                    type="text"
-                    value={chromaDatabase}
-                    onChange={(e) => setChromaDatabase(e.target.value)}
-                    placeholder="chunkcanvas"
-                    className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                  />
+                  <p className="text-[10px] text-silver-dark mt-0.5">
+                    Required by Chroma Cloud to scope your data. Found in your Chroma Cloud dashboard.
+                  </p>
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Database Selection */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gunmetal">
+              Select Database
+            </label>
+            {chromaDatabases.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-silver p-4 text-center">
+                <p className="text-xs text-silver-dark">
+                  No databases found{chromaMode === "local" ? " — create one below." : "."}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {chromaDatabases.map((dbName) => {
+                  const isSelected = chromaDatabase === dbName;
+                  return (
+                    <button
+                      key={dbName}
+                      type="button"
+                      onClick={() => {
+                        setChromaDatabase(dbName);
+                        // Reset collection when database changes
+                        setChromaCollectionName("");
+                        setChromaCollections([]);
+                      }}
+                      className={`
+                        w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
+                        ${isSelected
+                          ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                          : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
+                        }
+                      `}
+                    >
+                      <span
+                        className={`
+                          flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
+                          ${isSelected ? "border-sandy" : "border-silver"}
+                        `}
+                      >
+                        {isSelected && <span className="h-1 w-1 rounded-full bg-sandy" />}
+                      </span>
+                      <span className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}>
+                        {dbName}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Create Database — collapsible (local only; Chroma Cloud manages databases via dashboard) */}
+          {chromaMode === "local" ? (
+          <details
+            open={showCreateChromaDatabase}
+            onToggle={(e) => setShowCreateChromaDatabase((e.target as HTMLDetailsElement).open)}
+            className="group rounded-lg border border-silver-light overflow-hidden"
+          >
+            <summary className="cursor-pointer list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
+              <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="text-sm font-medium text-gunmetal">Create New Database</span>
+              <svg className="h-4 w-4 text-sandy ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </summary>
+            <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
+              <input
+                type="text"
+                value={newChromaDatabase}
+                onChange={(e) => setNewChromaDatabase(e.target.value)}
+                placeholder="my_database"
+                className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newChromaDatabase.trim()) return;
+                  setCreatingChromaDatabase(true);
+                  setChromaError(null);
+                  setChromaSuccess(null);
+                  try {
+                    const response = await fetch("/api/chroma/databases", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        mode: chromaMode,
+                        localUrl: chromaLocalUrl || undefined,
+                        name: newChromaDatabase.trim(),
+                      }),
+                    });
+                    const json = await response.json();
+                    if (!response.ok || !json.success) {
+                      throw new Error(json.message || "Failed to create database");
+                    }
+                    setChromaDatabase(newChromaDatabase.trim());
+                    setNewChromaDatabase("");
+                    setShowCreateChromaDatabase(false);
+                    setChromaSuccess(`Database "${json.database.name}" created.`);
+                    await fetchChromaDatabases();
+                  } catch (err) {
+                    setChromaError(err instanceof Error ? err.message : String(err));
+                  } finally {
+                    setCreatingChromaDatabase(false);
+                  }
+                }}
+                disabled={!newChromaDatabase.trim() || creatingChromaDatabase}
+                className="w-full rounded-lg bg-sandy px-3 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                {creatingChromaDatabase ? "Creating…" : "Create Database"}
+              </button>
+            </div>
+          </details>
+          ) : (
+            <p className="text-[10px] text-silver-dark">
+              Chroma Cloud databases are managed via the{" "}
+              <a href="https://www.trychroma.com/login" target="_blank" rel="noopener noreferrer" className="text-sandy hover:underline">
+                Chroma Cloud dashboard
+              </a>
+              . The API key does not have permission to create databases.
+            </p>
           )}
 
           {/* Collection Selection */}

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useAppStore } from "@/app/lib/store";
-import { VOYAGE_MODELS, COHERE_MODELS, EMBEDDING_MODELS, OPENROUTER_DEFAULT_EMBEDDING_MODEL, DEFAULT_OLLAMA_ENDPOINT } from "@/app/lib/constants";
+import { VOYAGE_MODELS, COHERE_MODELS, EMBEDDING_MODELS, OPENROUTER_DEFAULT_EMBEDDING_MODEL, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS } from "@/app/lib/constants";
 import ActionRow from "@/app/components/downloads/ActionRow";
 import type { EmbeddingsJson } from "@/app/lib/types";
 import type { ScriptConfig } from "@/app/lib/script-generator";
@@ -103,6 +103,10 @@ export default function EmbeddingsSection() {
   // Shared embedding dimensions
   const embeddingDimensions = useAppStore((s) => s.embeddingDimensions);
   const setEmbeddingDimensions = useAppStore((s) => s.setEmbeddingDimensions);
+
+  // Track the user's intended dimensions to restore them when switching to larger models.
+  // We initialize from the persistent store value.
+  const [userDesiredDimensions, setUserDesiredDimensions] = useState(embeddingDimensions || DEFAULT_EMBEDDING_DIMENSIONS);
 
   // Ollama embedding models
   const [ollamaEmbedModels, setOllamaEmbedModels] = useState<OllamaEmbedModel[]>([]);
@@ -286,6 +290,39 @@ export default function EmbeddingsSection() {
     if (embeddingProvider === "vllm") return vllmEmbeddingModel;
     return openrouterEmbeddingModel;
   }, [embeddingProvider, voyageModel, cohereModel, openrouterEmbeddingModel, ollamaEmbeddingModel, vllmEmbeddingModel]);
+
+  // Max dimensions for the selected model across all providers
+  const selectedModelMaxDimensions = useMemo(() => {
+    if (embeddingProvider === "voyage") {
+      return VOYAGE_MODELS.find((m) => m.key === voyageModel)?.dimensions ?? 0;
+    }
+    if (embeddingProvider === "cohere") {
+      return COHERE_MODELS.find((m) => m.key === cohereModel)?.dimensions ?? 0;
+    }
+    if (embeddingProvider === "ollama") {
+      return ollamaEmbedModels.find((m) => m.name === ollamaEmbeddingModel)?.embeddingDimensions ?? 0;
+    }
+    if (embeddingProvider === "vllm") {
+      return 0; // Unknown for local vLLM
+    }
+    return orEmbeddingModels.find((m) => m.id === openrouterEmbeddingModel)?.dimensions ?? 0;
+  }, [embeddingProvider, voyageModel, cohereModel, ollamaEmbeddingModel, ollamaEmbedModels, openrouterEmbeddingModel, orEmbeddingModels]);
+
+  // Synchronize embedding dimensions with selected model's capacity
+  useEffect(() => {
+    if (selectedModelMaxDimensions > 0) {
+      // If switching models, we want to respect the user's intended dimension (userDesiredDimensions)
+      // but cap it to what the model supports.
+      if (userDesiredDimensions > selectedModelMaxDimensions) {
+        setEmbeddingDimensions(selectedModelMaxDimensions);
+      } else {
+        setEmbeddingDimensions(userDesiredDimensions);
+      }
+    } else if (embeddingDimensions === 0) {
+      // Fallback if somehow reset to 0
+      setEmbeddingDimensions(userDesiredDimensions || DEFAULT_EMBEDDING_DIMENSIONS);
+    }
+  }, [selectedModelMaxDimensions, userDesiredDimensions, setEmbeddingDimensions]);
 
   const embeddingDimsForCache = useMemo(() => {
     if (embeddingProvider === "voyage") {
@@ -906,7 +943,11 @@ export default function EmbeddingsSection() {
           min={0}
           step={1}
           value={embeddingDimensions}
-          onChange={(e) => setEmbeddingDimensions(Math.max(0, parseInt(e.target.value) || 0))}
+          onChange={(e) => {
+            const val = Math.max(0, parseInt(e.target.value) || 0);
+            setEmbeddingDimensions(val);
+            setUserDesiredDimensions(val);
+          }}
           className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
         />
       </div>

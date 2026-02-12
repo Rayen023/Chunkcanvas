@@ -54,7 +54,7 @@ function resolveConnection(args: {
   return {
     baseUrl: normalizeBaseUrl(args.localUrl?.trim() || DEFAULT_LOCAL_URL),
     tenant: DEFAULT_TENANT,
-    database: DEFAULT_DATABASE,
+    database: args.cloudDatabase?.trim() || DEFAULT_DATABASE,
   };
 }
 

@@ -2,37 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 
 type ChromaMode = "local" | "cloud";
 
-type Metadata = Record<string, unknown>;
-
 const DEFAULT_LOCAL_URL = process.env.CHROMA_LOCAL_URL || "http://localhost:8000";
 const DEFAULT_TENANT = "default_tenant";
-const DEFAULT_DATABASE = "default_database";
 const DEFAULT_CLOUD_HOST = "https://api.trychroma.com";
 
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-function parseMode(value: string | null): ChromaMode {
-  return value === "cloud" ? "cloud" : "local";
-}
-
 function resolveCloudAuth(opts: {
   apiKey?: string;
   tenant?: string;
-  database?: string;
-}): { apiKey: string; tenant: string; database: string } {
+}): { apiKey: string; tenant: string } {
   const apiKey = opts.apiKey || process.env.CHROMA_API_KEY || process.env.NEXT_PUBLIC_CHROMA_API_KEY;
   const tenant = opts.tenant || process.env.CHROMA_TENANT || process.env.NEXT_PUBLIC_CHROMA_TENANT;
-  const database = opts.database || process.env.CHROMA_DATABASE || process.env.NEXT_PUBLIC_CHROMA_DATABASE;
 
-  if (!apiKey || !tenant || !database) {
+  if (!apiKey || !tenant) {
     throw new Error(
-      "Missing Chroma Cloud credentials. Provide apiKey/tenant/database (or set CHROMA_API_KEY, CHROMA_TENANT, CHROMA_DATABASE).",
+      "Missing Chroma Cloud credentials. Provide apiKey and tenant (or set CHROMA_API_KEY, CHROMA_TENANT).",
     );
   }
 
-  return { apiKey, tenant, database };
+  return { apiKey, tenant };
+}
+
+function parseMode(value: string | null): ChromaMode {
+  return value === "cloud" ? "cloud" : "local";
 }
 
 function resolveConnection(args: {
@@ -40,26 +35,22 @@ function resolveConnection(args: {
   localUrl?: string;
   cloudApiKey?: string;
   cloudTenant?: string;
-  cloudDatabase?: string;
-}): { baseUrl: string; apiKey?: string; tenant: string; database: string } {
+}): { baseUrl: string; apiKey?: string; tenant: string } {
   if (args.mode === "cloud") {
     const cloud = resolveCloudAuth({
       apiKey: args.cloudApiKey,
       tenant: args.cloudTenant,
-      database: args.cloudDatabase,
     });
     return {
       baseUrl: DEFAULT_CLOUD_HOST,
       apiKey: cloud.apiKey,
       tenant: cloud.tenant,
-      database: cloud.database,
     };
   }
 
   return {
     baseUrl: normalizeBaseUrl(args.localUrl?.trim() || DEFAULT_LOCAL_URL),
     tenant: DEFAULT_TENANT,
-    database: args.cloudDatabase?.trim() || DEFAULT_DATABASE,
   };
 }
 
@@ -96,114 +87,113 @@ async function chromaFetchJson<T>(
   }
 }
 
-interface CreateCollectionRequest {
-  mode: ChromaMode;
-  localUrl?: string;
-  cloudApiKey?: string;
-  cloudTenant?: string;
-  cloudDatabase?: string;
+type ChromaDatabaseListItem = {
+  id?: string;
   name: string;
-  metadata?: Metadata;
-  getOrCreate?: boolean;
-}
-
-type ChromaCollectionListItem = {
-  id: string;
-  name: string;
+  tenant?: string;
 };
 
+/**
+ * GET /api/chroma/databases
+ * Lists all databases for a given tenant
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const mode = parseMode(searchParams.get("mode"));
     const localUrl = searchParams.get("localUrl") ?? undefined;
-    const databaseParam = searchParams.get("database") ?? undefined;
 
     const cloudApiKey = request.headers.get("x-chroma-api-key") ?? undefined;
     const cloudTenant = request.headers.get("x-chroma-tenant") ?? undefined;
-    const cloudDatabase = request.headers.get("x-chroma-database") ?? databaseParam;
 
     const conn = resolveConnection({
       mode,
       localUrl,
       cloudApiKey,
       cloudTenant,
-      cloudDatabase,
     });
 
     const url = new URL(
-      `${normalizeBaseUrl(conn.baseUrl)}/api/v2/tenants/${encodeURIComponent(conn.tenant)}/databases/${encodeURIComponent(conn.database)}/collections`,
+      `${normalizeBaseUrl(conn.baseUrl)}/api/v2/tenants/${encodeURIComponent(conn.tenant)}/databases`,
     );
     url.searchParams.set("limit", "500");
     url.searchParams.set("offset", "0");
 
-    const data = await chromaFetchJson<ChromaCollectionListItem[]>(url.toString(), {
+    const data = await chromaFetchJson<ChromaDatabaseListItem[]>(url.toString(), {
       method: "GET",
       headers: conn.apiKey ? { "x-chroma-token": conn.apiKey } : undefined,
     });
 
-    const collections = Array.isArray(data) ? data.map((c) => c.name) : [];
+    const databases = Array.isArray(data) ? data.map((d) => d.name) : [];
 
     return NextResponse.json({
       success: true,
       mode,
-      collections,
+      databases,
     });
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to list collections",
+        message: error instanceof Error ? error.message : "Failed to list databases",
       },
       { status: 500 },
     );
   }
 }
 
+interface CreateDatabaseRequest {
+  mode: ChromaMode;
+  localUrl?: string;
+  cloudApiKey?: string;
+  cloudTenant?: string;
+  name: string;
+}
+
+/**
+ * POST /api/chroma/databases
+ * Creates a new database for a given tenant
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body: CreateCollectionRequest = await request.json();
+    const body: CreateDatabaseRequest = await request.json();
 
     if (!body.name?.trim()) {
-      return NextResponse.json({ success: false, message: "Collection name is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Database name is required" },
+        { status: 400 },
+      );
     }
 
     const name = body.name.trim();
-    const mode = body.mode === "cloud" ? "cloud" : "local";
+    const mode: ChromaMode = body.mode === "cloud" ? "cloud" : "local";
 
     const conn = resolveConnection({
       mode,
       localUrl: body.localUrl,
       cloudApiKey: body.cloudApiKey,
       cloudTenant: body.cloudTenant,
-      cloudDatabase: body.cloudDatabase,
     });
 
-    const url = `${normalizeBaseUrl(conn.baseUrl)}/api/v2/tenants/${encodeURIComponent(conn.tenant)}/databases/${encodeURIComponent(conn.database)}/collections`;
-    const data = await chromaFetchJson<{ id: string; name: string }>(url, {
+    const url = `${normalizeBaseUrl(conn.baseUrl)}/api/v2/tenants/${encodeURIComponent(conn.tenant)}/databases`;
+    const data = await chromaFetchJson<{ name: string }>(url, {
       method: "POST",
       headers: conn.apiKey ? { "x-chroma-token": conn.apiKey } : undefined,
-      body: JSON.stringify({
-        name,
-        configuration: {},
-        metadata: body.metadata,
-        get_or_create: body.getOrCreate ?? true,
-      }),
+      body: JSON.stringify({ name }),
     });
 
     return NextResponse.json({
       success: true,
       mode,
-      collection: {
-        id: data.id,
-        name: data.name,
+      database: {
+        name: data.name || name,
       },
     });
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to create collection",
+        message: error instanceof Error ? error.message : "Failed to create database",
       },
       { status: 500 },
     );
