@@ -98,6 +98,11 @@ export interface PineconeEnvironment {
 
 export type ChromaMode = "local" | "cloud";
 
+export type VectorDbProvider = "pinecone" | "chroma" | "mongodb" | "faiss";
+
+export type FaissMetric = "cosine" | "l2" | "ip";
+export type FaissDbMode = "existing" | "create";
+
 // ─── Chunking Parameters ─────────────────────────────────────────────────
 
 export type ChunkingType = "recursive";

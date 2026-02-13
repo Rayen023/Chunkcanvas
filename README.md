@@ -20,6 +20,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## FAISS Backend (FastAPI + uv)
+
+ChunkCanvas now includes a local Python backend for FAISS management in `backend/`.
+
+```bash
+cd backend
+uv venv
+source .venv/bin/activate
+uv add fastapi "uvicorn[standard]" faiss-cpu numpy pydantic
+uv run uvicorn app.main:app --reload --port 8010
+```
+
+Then use the **FAISS** option in Step 6 of the app and point it to `http://localhost:8010`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

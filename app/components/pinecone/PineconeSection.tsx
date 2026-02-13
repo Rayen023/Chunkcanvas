@@ -8,7 +8,9 @@ import ActionRow from "@/app/components/downloads/ActionRow";
 import { ProviderSelector, ConfigContainer, ConfigHeader, ProviderOption } from "@/app/components/shared/ConfigSection";
 import StatusMessage from "@/app/components/shared/StatusMessage";
 import Tooltip from "@/app/components/shared/Tooltip";
+import FaissSection from "@/app/components/faiss/FaissSection";
 import type { ScriptConfig } from "@/app/lib/script-generator";
+import type { VectorDbProvider } from "@/app/lib/types";
 
 const DB_OPTIONS: ProviderOption[] = [
   { id: "pinecone", label: "Pinecone", icon: "/tech-icons/Pinecone-Icon--Streamline-Svg-Logos.svg", badge: "Cloud", requiresApiKey: true },
@@ -86,6 +88,8 @@ export default function PineconeSection() {
   const setIsUploadingChroma = useAppStore((s) => s.setIsUploadingChroma);
   const setChromaError = useAppStore((s) => s.setChromaError);
   const setChromaSuccess = useAppStore((s) => s.setChromaSuccess);
+  const selectedDb = useAppStore((s) => s.selectedVectorDb);
+  const setSelectedDb = useAppStore((s) => s.setSelectedVectorDb);
 
   // Create index form state
   const [showCreate, setShowCreate] = useState(false);
@@ -103,9 +107,6 @@ export default function PineconeSection() {
   const [showCreateChromaDatabase, setShowCreateChromaDatabase] = useState(false);
   const [creatingChromaDatabase, setCreatingChromaDatabase] = useState(false);
   const [newChromaDatabase, setNewChromaDatabase] = useState("");
-
-  // DB selection state
-  const [selectedDb, setSelectedDb] = useState<"pinecone" | "chroma" | "mongodb" | "faiss">("pinecone");
 
   // Auto-fill env key
   useEffect(() => {
@@ -503,7 +504,7 @@ export default function PineconeSection() {
         <ProviderSelector
           options={DB_OPTIONS}
           selectedId={selectedDb}
-          onSelect={(id) => setSelectedDb(id as "pinecone" | "chroma" | "mongodb" | "faiss")}
+          onSelect={(id) => setSelectedDb(id as VectorDbProvider)}
         />
       </div>
 
@@ -1268,17 +1269,7 @@ export default function PineconeSection() {
       )}
 
       {selectedDb === "faiss" && (
-        <div className="py-12 flex flex-col items-center justify-center text-center space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-          <div className="h-16 w-16 bg-sandy/10 rounded-2xl flex items-center justify-center">
-            <Image src="/tech-icons/meta-color.svg" alt="Meta/FAISS" width={40} height={40} className="h-10 w-10 opacity-50 grayscale" />
-          </div>
-          <div className="space-y-2 max-w-sm">
-            <h3 className="text-gunmetal font-semibold text-lg">FAISS (Meta AI)</h3>
-            <p className="text-silver-dark text-sm">
-              Local FAISS index generation and export is planned. This will allow for high-performance local vector search without a cloud database.
-            </p>
-          </div>
-        </div>
+        <FaissSection />
       )}
       </ConfigContainer>
     </div>

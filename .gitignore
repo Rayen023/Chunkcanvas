@@ -44,3 +44,8 @@ NEXTJS_SPEC.md
 .gemini
 .github
 .vscode
+
+# python backend
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc

@@ -5,7 +5,7 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping, ExtPipelineConfig, ChromaMode } from "./types";
+import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping, ExtPipelineConfig, ChromaMode, FaissDbMode, FaissMetric, VectorDbProvider } from "./types";
 import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_SEPARATORS, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_VLLM_ENDPOINT, DEFAULT_VLLM_EMBEDDING_ENDPOINT } from "./constants";
 
 function fnv1a32(input: string): string {
@@ -129,6 +129,16 @@ export interface AppState {
   chromaError: string | null;
   chromaSuccess: string | null;
 
+  // ── Step 7 — FAISS ────────────────────────────
+  faissApiBase: string;
+  faissIndexesDir: string;
+  faissNewDbName: string;
+  faissDbPath: string;
+  faissDbMode: FaissDbMode;
+  faissDimension: number;
+  faissMetric: FaissMetric;
+  selectedVectorDb: VectorDbProvider;
+
   // ── UI state ───────────────────────────────────
   allChunksCollapsed: boolean;
 
@@ -249,6 +259,15 @@ export interface AppActions {
   setIsUploadingChroma: (v: boolean) => void;
   setChromaError: (err: string | null) => void;
   setChromaSuccess: (msg: string | null) => void;
+
+  setFaissApiBase: (url: string) => void;
+  setFaissIndexesDir: (dir: string) => void;
+  setFaissNewDbName: (name: string) => void;
+  setFaissDbPath: (path: string) => void;
+  setFaissDbMode: (mode: FaissDbMode) => void;
+  setFaissDimension: (dimension: number) => void;
+  setFaissMetric: (metric: FaissMetric) => void;
+  setSelectedVectorDb: (provider: VectorDbProvider) => void;
 
   // Sidebar
   setSidebarCollapsed: (v: boolean) => void;
@@ -385,6 +404,14 @@ export const useAppStore = create<AppState & AppActions>()(
   isUploadingChroma: false,
   chromaError: null,
   chromaSuccess: null,
+  faissApiBase: "http://localhost:8010",
+  faissIndexesDir: "/tmp/chunkcanvas",
+  faissNewDbName: "index",
+  faissDbPath: "/tmp/chunkcanvas/index.faiss",
+  faissDbMode: "existing",
+  faissDimension: DEFAULT_EMBEDDING_DIMENSIONS,
+  faissMetric: "cosine",
+  selectedVectorDb: "pinecone",
   allChunksCollapsed: true,
   sidebarCollapsed: false,
   sidebarWidth: 288,
@@ -804,6 +831,15 @@ export const useAppStore = create<AppState & AppActions>()(
   setChromaError: (err) => set({ chromaError: err }),
   setChromaSuccess: (msg) => set({ chromaSuccess: msg }),
 
+  setFaissApiBase: (url) => set({ faissApiBase: url }),
+  setFaissIndexesDir: (dir) => set({ faissIndexesDir: dir }),
+  setFaissNewDbName: (name) => set({ faissNewDbName: name }),
+  setFaissDbPath: (path) => set({ faissDbPath: path }),
+  setFaissDbMode: (mode) => set({ faissDbMode: mode }),
+  setFaissDimension: (dimension) => set({ faissDimension: dimension }),
+  setFaissMetric: (metric) => set({ faissMetric: metric }),
+  setSelectedVectorDb: (provider) => set({ selectedVectorDb: provider }),
+
   setAllChunksCollapsed: (v) => set({ allChunksCollapsed: v }),
 
   setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
@@ -910,6 +946,13 @@ export const useAppStore = create<AppState & AppActions>()(
       isUploadingChroma: false,
       chromaError: null,
       chromaSuccess: null,
+      faissApiBase: s.faissApiBase || "http://localhost:8010",
+      faissIndexesDir: s.faissIndexesDir || "/tmp/chunkcanvas",
+      faissNewDbName: s.faissNewDbName || "index",
+      faissDbPath: s.faissDbPath || "/tmp/chunkcanvas/index.faiss",
+      faissDbMode: s.faissDbMode || "existing",
+      faissDimension: s.faissDimension || DEFAULT_EMBEDDING_DIMENSIONS,
+      faissMetric: s.faissMetric || "cosine",
       allChunksCollapsed: true,
       scrollActiveStep: null,
       sidebarWidth: 288,
@@ -1015,6 +1058,16 @@ export const useAppStore = create<AppState & AppActions>()(
         chromaLocalUrl: state.chromaLocalUrl,
         chromaDatabase: state.chromaDatabase,
         chromaCollectionName: state.chromaCollectionName,
+
+        // FAISS settings
+        faissApiBase: state.faissApiBase,
+        faissIndexesDir: state.faissIndexesDir,
+        faissNewDbName: state.faissNewDbName,
+        faissDbPath: state.faissDbPath,
+        faissDbMode: state.faissDbMode,
+        faissDimension: state.faissDimension,
+        faissMetric: state.faissMetric,
+        selectedVectorDb: state.selectedVectorDb,
 
         // Chunking settings
         chunkingParams: state.chunkingParams,
