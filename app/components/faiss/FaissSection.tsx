@@ -311,7 +311,7 @@ export default function FaissSection() {
                 {showLaunchCommand ? "Hide launch command" : "Show launch command"}
               </button>
               {showLaunchCommand && (
-                <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-all whitespace-pre-wrap">
+                <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
                   {launchCommand}
                 </div>
               )}

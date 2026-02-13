@@ -103,10 +103,10 @@ export default function ChromaStatus() {
           </button>
           {showExamples && (
             <div className="mt-2 space-y-2">
-              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-all">
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
                 {cliExample}
               </div>
-              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-all">
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
                 {dockerExample}
               </div>
             </div>

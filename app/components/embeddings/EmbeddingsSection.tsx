@@ -872,7 +872,7 @@ export default function EmbeddingsSection() {
                   {showVllmExample ? "Hide example command" : "Show example command"}
                 </button>
                 {showVllmExample && (
-                  <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-all">
+                  <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
                     vllm serve {vllmEmbeddingModel || "jinaai/jina-embeddings-v3"} --port {vllmEmbeddingEndpoint ? new URL(vllmEmbeddingEndpoint).port : "8001"}
                   </div>
                 )}
