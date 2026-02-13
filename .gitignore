@@ -49,3 +49,4 @@ NEXTJS_SPEC.md
 backend/.venv/
 backend/**/__pycache__/
 backend/**/*.pyc
+backend/my_chroma_data
