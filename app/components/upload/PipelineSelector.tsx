@@ -155,7 +155,11 @@ export default function PipelineSelector() {
   const toggleExpand = (ext: string) =>
     setExpandedExts((prev) => {
       const next = new Set(prev);
-      next.has(ext) ? next.delete(ext) : next.add(ext);
+      if (next.has(ext)) {
+        next.delete(ext);
+      } else {
+        next.add(ext);
+      }
       return next;
     });
 

@@ -130,9 +130,7 @@ export default function ChunkingParams() {
 
   return (
     <div
-      className={`space-y-3 rounded-lg border p-3 ${
-        isModified ? "border-sandy" : "border-silver-light"
-      }`}
+      className="space-y-3 rounded-lg border border-sandy p-3"
     >
       {/* Strategy + Defaults */}
       <div className="flex items-center justify-between gap-3">
@@ -149,7 +147,7 @@ export default function ChunkingParams() {
           <button
             type="button"
             onClick={resetChunkingDefaults}
-            className="flex items-center gap-1.5 rounded-lg border border-silver-light px-2.5 py-1 text-[11px] font-medium text-silver-dark hover:border-sandy hover:text-sandy transition-colors cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 rounded-lg border border-sandy bg-sandy/10 px-2.5 py-1 text-[11px] font-medium text-sandy hover:bg-sandy hover:text-white transition-colors cursor-pointer shrink-0"
             title="Reset chunking parameters to defaults"
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -164,7 +162,7 @@ export default function ChunkingParams() {
         {/* Tuning */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Chunk size */}
-          <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2">
+          <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2 hover:border-sandy focus-within:border-sandy transition-colors">
             <div className="flex items-center justify-between gap-2">
               <label className="text-xs font-semibold text-gunmetal">Chunk size (characters)</label>
               <div className="flex items-center gap-1.5">
@@ -224,7 +222,7 @@ export default function ChunkingParams() {
           </div>
 
           {/* Overlap */}
-          <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2">
+          <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2 hover:border-sandy focus-within:border-sandy transition-colors">
             <div className="flex items-center justify-between gap-2">
               <label className="text-xs font-semibold text-gunmetal">Overlap (characters)</label>
               <div className="flex items-center gap-1.5">
@@ -299,7 +297,7 @@ export default function ChunkingParams() {
         </div>
 
         {/* Separators */}
-        <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2">
+        <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2 hover:border-sandy focus-within:border-sandy transition-colors">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-xs font-semibold text-gunmetal">Separators</div>
