@@ -25,11 +25,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ChunkCanvas now includes a local Python backend for FAISS management in `backend/`.
 
 ```bash
-cd backend
-uv venv
-source .venv/bin/activate
-uv add fastapi "uvicorn[standard]" faiss-cpu numpy pydantic
-uv run uvicorn app.main:app --reload --port 8010
+cd backend && source .venv/bin/activate && uvicorn app.faiss_server:app --reload --port 8010
 ```
 
 Then use the **FAISS** option in Step 6 of the app and point it to `http://localhost:8010`.

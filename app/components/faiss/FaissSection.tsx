@@ -110,13 +110,16 @@ export default function FaissSection() {
 
   const canCreate = !!indexesDir.trim() && !!newDbName.trim() && dimension > 0;
 
-  const launchCommand = [
-    "cd backend",
-    "uv venv",
-    "source .venv/bin/activate",
-    "uv sync",
-    "uv run uvicorn app.main:app --reload --port 8010",
-  ].join("\n");
+  const getPort = (url: string) => {
+    try {
+      const p = new URL(url).port;
+      return p || (url.startsWith("https") ? "443" : "8010");
+    } catch {
+      return "8010";
+    }
+  };
+
+  const launchCommand = `cd backend && source .venv/bin/activate && uv run uvicorn app.faiss_server:app --reload --port ${getPort(faissApiBase)}`;
 
   const handleListIndexes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -294,7 +297,17 @@ export default function FaissSection() {
 
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-gunmetal mb-1">FastAPI URL</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-gunmetal">FastAPI URL</label>
+              <button
+                type="button"
+                onClick={() => handleListIndexes()}
+                disabled={isListing || !faissApiBase.trim()}
+                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                Refresh
+              </button>
+            </div>
             <input
               type="text"
               value={faissApiBase}
@@ -318,7 +331,17 @@ export default function FaissSection() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gunmetal mb-1">Indexes Directory</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-gunmetal">Indexes Directory</label>
+              <button
+                type="button"
+                onClick={() => handleListIndexes()}
+                disabled={isListing || !indexesDir.trim()}
+                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                Refresh
+              </button>
+            </div>
             <input
               type="text"
               value={indexesDir}
@@ -369,9 +392,9 @@ export default function FaissSection() {
                 type="button"
                 onClick={() => handleListIndexes()}
                 disabled={isListing || !indexesDir.trim()}
-                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50"
+                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
               >
-                {isListing ? "Refreshing…" : "Refresh"}
+                Refresh
               </button>
             </div>
             {availableIndexes.length === 0 ? (

@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ChunkingParams, EmbeddingProvider, PdfEngine, ParsedFileResult, PineconeFieldMapping, ExtPipelineConfig, ChromaMode, FaissDbMode, FaissMetric, VectorDbProvider } from "./types";
-import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_SEPARATORS, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_VLLM_ENDPOINT, DEFAULT_VLLM_EMBEDDING_ENDPOINT } from "./constants";
+import { DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_SEPARATORS, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, DEFAULT_VLLM_ENDPOINT, DEFAULT_VLLM_EMBEDDING_ENDPOINT, DEFAULT_DOCLING_ENDPOINT, DEFAULT_CHROMA_ENDPOINT, DEFAULT_FAISS_ENDPOINT } from "./constants";
 
 function fnv1a32(input: string): string {
   let hash = 0x811c9dc5;
@@ -53,6 +53,9 @@ export interface AppState {
   vllmAdditionalEndpoints: string[];
   vllmModel: string;
   vllmPrompt: string;
+
+  // Docling parsing
+  doclingEndpoint: string;
 
   // ── Step 3 — parsed result ────────────────────
   parsedContent: string | null;
@@ -195,6 +198,9 @@ export interface AppActions {
   setVllmModel: (model: string) => void;
   setVllmPrompt: (prompt: string) => void;
 
+  // Docling parsing
+  setDoclingEndpoint: (ep: string) => void;
+
   // Step 3
   setParsedContent: (content: string | null) => void;
   setParsedFilename: (name: string) => void;
@@ -306,6 +312,8 @@ export function defaultExtConfig(): ExtPipelineConfig {
     vllmEndpoint: DEFAULT_VLLM_ENDPOINT,
     vllmModel: "",
     vllmPrompt: "",
+    doclingEndpoint: DEFAULT_DOCLING_ENDPOINT,
+    // Docling (granite-docling via vLLM)
     excelSheet: "",
     excelSheets: [],
     excelColumn: "",
@@ -344,6 +352,9 @@ export const useAppStore = create<AppState & AppActions>()(
   vllmAdditionalEndpoints: [],
   vllmModel: "",
   vllmPrompt: "",
+
+  // Docling parsing
+  doclingEndpoint: DEFAULT_DOCLING_ENDPOINT,
 
   parsedContent: null,
   parsedFilename: "",
@@ -394,7 +405,7 @@ export const useAppStore = create<AppState & AppActions>()(
   pineconeError: null,
   pineconeSuccess: null,
   chromaMode: "local",
-  chromaLocalUrl: "http://localhost:8000",
+  chromaLocalUrl: DEFAULT_CHROMA_ENDPOINT,
   chromaApiKey: "",
   chromaTenant: "",
   chromaDatabase: "default_database",
@@ -404,7 +415,7 @@ export const useAppStore = create<AppState & AppActions>()(
   isUploadingChroma: false,
   chromaError: null,
   chromaSuccess: null,
-  faissApiBase: "http://localhost:8010",
+  faissApiBase: DEFAULT_FAISS_ENDPOINT,
   faissIndexesDir: "/tmp/chunkcanvas",
   faissNewDbName: "index",
   faissDbPath: "/tmp/chunkcanvas/index.faiss",
@@ -667,7 +678,14 @@ export const useAppStore = create<AppState & AppActions>()(
     set((s) => {
       const current = s.configByExt[ext] ?? defaultExtConfig();
       const updated = { ...current, ...config };
+      
+      const nextGlobal: Partial<AppState> = {};
+      if (config.vllmEndpoint) nextGlobal.vllmEndpoint = config.vllmEndpoint;
+      if (config.ollamaEndpoint) nextGlobal.ollamaEndpoint = config.ollamaEndpoint;
+      if (config.doclingEndpoint) nextGlobal.doclingEndpoint = config.doclingEndpoint;
+
       return {
+        ...nextGlobal,
         configByExt: {
           ...s.configByExt,
           [ext]: updated,
@@ -706,14 +724,47 @@ export const useAppStore = create<AppState & AppActions>()(
   setExcelSelectedColumns: (cols) => set({ excelSelectedColumns: cols }),
   setExcelColumns: (cols) => set({ excelColumns: cols }),
 
-  setOllamaEndpoint: (ep) => set({ ollamaEndpoint: ep }),
+  setOllamaEndpoint: (ep) => set((s) => {
+    const nextConfigByExt = { ...s.configByExt };
+    for (const ext in nextConfigByExt) {
+      nextConfigByExt[ext] = { ...nextConfigByExt[ext], ollamaEndpoint: ep };
+    }
+    const nextLastConfigByExt = { ...s.lastConfigByExt };
+    for (const ext in nextLastConfigByExt) {
+      nextLastConfigByExt[ext] = { ...nextLastConfigByExt[ext], ollamaEndpoint: ep };
+    }
+    return { ollamaEndpoint: ep, configByExt: nextConfigByExt, lastConfigByExt: nextLastConfigByExt };
+  }),
   setOllamaModel: (model) => set({ ollamaModel: model }),
   setOllamaPrompt: (prompt) => set({ ollamaPrompt: prompt }),
 
-  setVllmEndpoint: (ep) => set({ vllmEndpoint: ep }),
+  setVllmEndpoint: (ep) => set((s) => {
+    const nextConfigByExt = { ...s.configByExt };
+    for (const ext in nextConfigByExt) {
+      nextConfigByExt[ext] = { ...nextConfigByExt[ext], vllmEndpoint: ep };
+    }
+    const nextLastConfigByExt = { ...s.lastConfigByExt };
+    for (const ext in nextLastConfigByExt) {
+      nextLastConfigByExt[ext] = { ...nextLastConfigByExt[ext], vllmEndpoint: ep };
+    }
+    return { vllmEndpoint: ep, configByExt: nextConfigByExt, lastConfigByExt: nextLastConfigByExt };
+  }),
   setVllmAdditionalEndpoints: (eps) => set({ vllmAdditionalEndpoints: eps }),
   setVllmModel: (model) => set({ vllmModel: model }),
   setVllmPrompt: (prompt) => set({ vllmPrompt: prompt }),
+
+  // Docling parsing setters
+  setDoclingEndpoint: (ep) => set((s) => {
+    const nextConfigByExt = { ...s.configByExt };
+    for (const ext in nextConfigByExt) {
+      nextConfigByExt[ext] = { ...nextConfigByExt[ext], doclingEndpoint: ep };
+    }
+    const nextLastConfigByExt = { ...s.lastConfigByExt };
+    for (const ext in nextLastConfigByExt) {
+      nextLastConfigByExt[ext] = { ...nextLastConfigByExt[ext], doclingEndpoint: ep };
+    }
+    return { doclingEndpoint: ep, configByExt: nextConfigByExt, lastConfigByExt: nextLastConfigByExt };
+  }),
 
   setParsedContent: (content) => set({ parsedContent: content }),
   setParsedFilename: (name) => set({ parsedFilename: name }),
@@ -936,7 +987,7 @@ export const useAppStore = create<AppState & AppActions>()(
       pineconeError: null,
       pineconeSuccess: null,
       chromaMode: s.chromaMode || "local",
-      chromaLocalUrl: s.chromaLocalUrl || "http://localhost:8000",
+      chromaLocalUrl: s.chromaLocalUrl || DEFAULT_CHROMA_ENDPOINT,
       chromaApiKey: "",
       chromaTenant: s.chromaTenant || "",
       chromaDatabase: s.chromaDatabase || "default_database",
@@ -946,7 +997,7 @@ export const useAppStore = create<AppState & AppActions>()(
       isUploadingChroma: false,
       chromaError: null,
       chromaSuccess: null,
-      faissApiBase: s.faissApiBase || "http://localhost:8010",
+      faissApiBase: s.faissApiBase || DEFAULT_FAISS_ENDPOINT,
       faissIndexesDir: s.faissIndexesDir || "/tmp/chunkcanvas",
       faissNewDbName: s.faissNewDbName || "index",
       faissDbPath: s.faissDbPath || "/tmp/chunkcanvas/index.faiss",

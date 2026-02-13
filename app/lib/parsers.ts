@@ -185,6 +185,8 @@ export interface ParseOptions {
   vllmEndpoint?: string;
   vllmModel?: string;
   vllmPrompt?: string;
+  // Docling (granite-docling via vLLM)
+  doclingEndpoint?: string;
   // Excel-specific
   excelColumn?: string;
   excelSelectedColumns?: string[];
@@ -323,6 +325,20 @@ export async function parseDocument(opts: ParseOptions): Promise<ParseResult> {
         opts.vllmEndpoint,
         opts.onPageStream,
       );
+      return { content };
+    }
+
+    // ── Docling PDF ───────────────────────────────────────────
+    case PIPELINE.DOCLING_PDF: {
+      const { processPdfWithDocling } = await import("./docling");
+      const vllmBase = (opts.vllmEndpoint ?? "http://localhost:8000").replace(/\/+$/, "");
+      const content = await processPdfWithDocling(opts.file, {
+        endpoint: opts.doclingEndpoint ?? "http://localhost:8020",
+        vllmUrl: `${vllmBase}/v1/chat/completions`,
+        onProgress: opts.onProgress,
+        onPageStream: opts.onPageStream,
+        signal: opts.signal,
+      });
       return { content };
     }
 

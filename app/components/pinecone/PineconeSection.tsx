@@ -107,6 +107,9 @@ export default function PineconeSection() {
   const [showCreateChromaDatabase, setShowCreateChromaDatabase] = useState(false);
   const [creatingChromaDatabase, setCreatingChromaDatabase] = useState(false);
   const [newChromaDatabase, setNewChromaDatabase] = useState("");
+  const [showExamples, setShowExamples] = useState(false);
+  const [isListingChromaDatabases, setIsListingChromaDatabases] = useState(false);
+  const [isListingChromaCollections, setIsListingChromaCollections] = useState(false);
 
   // Auto-fill env key
   useEffect(() => {
@@ -152,6 +155,7 @@ export default function PineconeSection() {
 
   const fetchChromaDatabases = useCallback(async () => {
     try {
+      setIsListingChromaDatabases(true);
       const query = new URLSearchParams({ mode: chromaMode });
       if (chromaMode === "local" && chromaLocalUrl.trim()) {
         query.set("localUrl", chromaLocalUrl.trim());
@@ -171,6 +175,8 @@ export default function PineconeSection() {
     } catch (err) {
       setChromaDatabases([]);
       setChromaError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsListingChromaDatabases(false);
     }
   }, [
     chromaMode,
@@ -185,6 +191,7 @@ export default function PineconeSection() {
   const fetchChromaCollections = useCallback(async () => {
     if (!chromaDatabase) return;
     try {
+      setIsListingChromaCollections(true);
       setChromaError(null);
       const query = new URLSearchParams({ mode: chromaMode, database: chromaDatabase });
       if (chromaMode === "local" && chromaLocalUrl.trim()) {
@@ -211,6 +218,8 @@ export default function PineconeSection() {
     } catch (err) {
       setChromaCollections([]);
       setChromaError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsListingChromaCollections(false);
     }
   }, [
     chromaMode,
@@ -972,16 +981,47 @@ export default function PineconeSection() {
 
           {chromaMode === "local" && (
             <div>
-              <label className="block text-sm font-medium text-gunmetal mb-1">
-                Local Chroma URL
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gunmetal">
+                  Local Chroma URL
+                </label>
+                <button
+                  type="button"
+                  onClick={() => fetchChromaDatabases()}
+                  disabled={isListingChromaDatabases || !chromaLocalUrl.trim()}
+                  className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                >
+                  {isListingChromaDatabases ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
               <input
                 type="text"
                 value={chromaLocalUrl}
                 onChange={(e) => setChromaLocalUrl(e.target.value)}
-                placeholder="http://localhost:8000"
+                placeholder="http://localhost:8002"
                 className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
               />
+              <div className="mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowExamples((v) => !v)}
+                  className="text-[10px] text-sandy hover:underline cursor-pointer"
+                >
+                  {showExamples ? "Hide launch command" : "Show launch command"}
+                </button>
+                {showExamples && (
+                  <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                    {(() => {
+                      try {
+                        const p = new URL(chromaLocalUrl).port || "8002";
+                        return `cd backend && source .venv/bin/activate && uv run chroma run --host localhost --port ${p} --path ./my_chroma_data`;
+                      } catch {
+                        return `cd backend && source .venv/bin/activate && uv run chroma run --host localhost --port 8002 --path ./my_chroma_data`;
+                      }
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1017,9 +1057,19 @@ export default function PineconeSection() {
 
           {/* Database Selection & Creation */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gunmetal">
-              Select Database
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gunmetal">
+                Select Database
+              </label>
+              <button
+                type="button"
+                onClick={() => fetchChromaDatabases()}
+                disabled={isListingChromaDatabases}
+                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                {isListingChromaDatabases ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
 
             {/* Create Database — collapsible (local only; Chroma Cloud manages databases via dashboard) */}
             {chromaMode === "local" ? (
@@ -1142,9 +1192,19 @@ export default function PineconeSection() {
 
           {/* Collection Selection */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gunmetal">
-              Select Collection
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gunmetal">
+                Select Collection
+              </label>
+              <button
+                type="button"
+                onClick={() => fetchChromaCollections()}
+                disabled={isListingChromaCollections || !chromaDatabase}
+                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                {isListingChromaCollections ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
 
             <details
               open={showCreateChromaCollection}

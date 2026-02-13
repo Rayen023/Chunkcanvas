@@ -6,6 +6,7 @@ import { useAppStore } from "@/app/lib/store";
 import OpenRouterForm from "../pipeline-forms/OpenRouterForm";
 import OllamaForm from "../pipeline-forms/OllamaForm";
 import VllmForm from "../pipeline-forms/VllmForm";
+import DoclingForm from "../pipeline-forms/DoclingForm";
 import ExcelForm from "../pipeline-forms/ExcelForm";
 import {
   ProviderSelector,
@@ -32,6 +33,7 @@ const PIPELINE_NEEDS_KEY: Record<string, boolean> = {
   [PIPELINE.VLLM_IMAGE]: false,
   [PIPELINE.VLLM_AUDIO]: false,
   [PIPELINE.VLLM_VIDEO]: false,
+  [PIPELINE.DOCLING_PDF]: false,
 };
 
 const PIPELINE_META: Record<string, Omit<ProviderOption, "id" | "label">> = {
@@ -100,6 +102,11 @@ const PIPELINE_META: Record<string, Omit<ProviderOption, "id" | "label">> = {
     icon: "/tech-icons/vllm-color.svg",
     requiresApiKey: false,
   },
+  [PIPELINE.DOCLING_PDF]: {
+    badge: "Local",
+    icon: "/tech-icons/docling.svg",
+    requiresApiKey: false,
+  },
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
@@ -116,6 +123,7 @@ const PIPELINE_LABELS: Record<string, string> = {
   [PIPELINE.VLLM_IMAGE]: "vLLM",
   [PIPELINE.VLLM_AUDIO]: "vLLM",
   [PIPELINE.VLLM_VIDEO]: "vLLM",
+  [PIPELINE.DOCLING_PDF]: "Docling",
 };
 
 export default function PipelineSelector() {
@@ -168,6 +176,7 @@ export default function PipelineSelector() {
     PIPELINE.OPENROUTER_PDF, PIPELINE.OPENROUTER_IMAGE, PIPELINE.OPENROUTER_AUDIO, PIPELINE.OPENROUTER_VIDEO,
     PIPELINE.OLLAMA_PDF, PIPELINE.OLLAMA_IMAGE,
     PIPELINE.VLLM_PDF, PIPELINE.VLLM_IMAGE, PIPELINE.VLLM_AUDIO, PIPELINE.VLLM_VIDEO,
+    PIPELINE.DOCLING_PDF,
     PIPELINE.EXCEL_SPREADSHEET, PIPELINE.CSV_SPREADSHEET,
   ]);
 
@@ -357,6 +366,9 @@ export default function PipelineSelector() {
                   )}
                   {selected.startsWith("vLLM") && (
                     <VllmForm ext={ext} />
+                  )}
+                  {selected === PIPELINE.DOCLING_PDF && (
+                    <DoclingForm ext={ext} />
                   )}
                   {(selected === PIPELINE.EXCEL_SPREADSHEET ||
                     selected === PIPELINE.CSV_SPREADSHEET) && (

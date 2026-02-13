@@ -69,11 +69,16 @@ export default function VllmForm({ ext }: { ext: string }) {
     return () => clearTimeout(timer);
   }, [endpoint, fetchModels]);
 
-  const exampleCommand = modality === "audio"
-    ? `vllm serve ${model || "openai/whisper-large-v3"} --port ${endpoint ? new URL(endpoint).port : "8000"}`
-    : modality === "video"
-    ? `vllm serve ${model || "llava-hf/LLaVA-NeXT-Video-7B-hf"} --port ${endpoint ? new URL(endpoint).port : "8000"}`
-    : `vllm serve ${model || "Qwen3-VL-8B-Instruct-FP8"} --port ${endpoint ? new URL(endpoint).port : "8000"}`;
+  const getPort = (url: string) => {
+    try {
+      const p = new URL(url).port;
+      return p || (url.startsWith("https") ? "443" : "8000");
+    } catch {
+      return "8000";
+    }
+  };
+
+  const launchCommand = `vllm serve ${model || "model_name"} --port ${getPort(endpoint)}`;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -105,11 +110,11 @@ export default function VllmForm({ ext }: { ext: string }) {
             onClick={() => setShowExample(!showExample)}
             className="text-[10px] text-sandy hover:underline cursor-pointer"
           >
-            {showExample ? "Hide example command" : "Show example command"}
+            {showExample ? "Hide launch command" : "Show launch command"}
           </button>
           {showExample && (
-            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
-              {exampleCommand}
+            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+              {launchCommand}
             </div>
           )}
         </div>
@@ -126,6 +131,15 @@ export default function VllmForm({ ext }: { ext: string }) {
               </span>
             )}
           </label>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchModels}
+              disabled={loadingModels}
+              className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         {modelError && (
@@ -165,7 +179,7 @@ export default function VllmForm({ ext }: { ext: string }) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           style={{ minHeight: "100px", maxHeight: "300px" }}
-          className="w-full rounded-lg border border-silver bg-card px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none resize-y overflow-y-auto"
+          className={`w-full rounded-lg border border-silver bg-card px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none resize-y overflow-y-auto`}
         />
       </div>
     </div>

@@ -14,6 +14,7 @@ export const PIPELINE = {
   VLLM_IMAGE: "vLLM — Image Parsing (Local Vision LLM)",
   VLLM_AUDIO: "vLLM — Audio Transcription (OpenAI-compatible)",
   VLLM_VIDEO: "vLLM — Video Understanding (Local Video LLM)",
+  DOCLING_PDF: "Docling — PDF Parsing (IBM Granite Docling)",
 } as const;
 
 export type PipelineName = (typeof PIPELINE)[keyof typeof PIPELINE];
@@ -33,6 +34,7 @@ export const PIPELINE_MODALITY: Record<string, Modality> = {
   [PIPELINE.VLLM_IMAGE]: "image",
   [PIPELINE.VLLM_AUDIO]: "audio",
   [PIPELINE.VLLM_VIDEO]: "video",
+  [PIPELINE.DOCLING_PDF]: "file",
 };
 
 // ─── OpenRouter Model ─────────────────────────────────────────────────────
@@ -188,6 +190,8 @@ export interface ExtPipelineConfig {
   vllmEndpoint: string;
   vllmModel: string;
   vllmPrompt: string;
+  // Docling (granite-docling via vLLM)
+  doclingEndpoint: string;
   // Excel / CSV
   excelSheet: string;
   excelSheets: string[];

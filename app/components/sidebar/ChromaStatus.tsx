@@ -34,19 +34,16 @@ export default function ChromaStatus() {
     }
   }, [localUrl]);
 
-  const cliExample = [
-    "pip install chromadb",
-    "chroma run --host localhost --port 8000 --path ./my_chroma_data",
-  ].join("\n");
+  const getPort = (url: string) => {
+    try {
+      const p = new URL(url).port;
+      return p || (url.startsWith("https") ? "443" : "8002");
+    } catch {
+      return "8002";
+    }
+  };
 
-  const dockerExample = [
-    "docker run -d --rm --name chromadb \\",
-    "  -p 8000:8000 \\",
-    "  -v ./chroma:/chroma/chroma \\",
-    "  -e IS_PERSISTENT=TRUE \\",
-    "  -e ANONYMIZED_TELEMETRY=TRUE \\",
-    "  chromadb/chroma:0.6.3",
-  ].join("\n");
+  const launchCommand = `cd backend && source .venv/bin/activate && uv run chroma run --host localhost --port ${getPort(localUrl)} --path ./my_chroma_data`;
 
   return (
     <details className="group">
@@ -64,12 +61,21 @@ export default function ChromaStatus() {
       </summary>
 
       <div className="mt-3 space-y-2 p-3 rounded-lg bg-config-bg border border-config-border">
-        <label className="block text-xs text-gunmetal-light">Chroma URL</label>
+        <div className="flex items-center justify-between">
+          <label className="block text-xs text-gunmetal-light">Chroma URL</label>
+          <button
+            onClick={check}
+            disabled={checking}
+            className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+          >
+            {checking ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
         <input
           type="text"
           value={localUrl}
           onChange={(e) => setLocalUrl(e.target.value)}
-          placeholder="http://localhost:8000"
+          placeholder="http://localhost:8002"
           className="w-full rounded-lg border border-silver bg-card text-gunmetal px-3 py-1.5 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
         />
 
@@ -78,7 +84,7 @@ export default function ChromaStatus() {
           disabled={checking}
           className="w-full rounded-lg bg-sandy px-3 py-1.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
         >
-          {checking ? "Checking…" : "Check"}
+          {checking ? "Checking…" : "Check Connection"}
         </button>
 
         {status === "ok" && (
@@ -99,16 +105,11 @@ export default function ChromaStatus() {
             onClick={() => setShowExamples((v) => !v)}
             className="text-[10px] text-sandy hover:underline cursor-pointer"
           >
-            {showExamples ? "Hide example commands" : "Show example commands"}
+            {showExamples ? "Hide launch command" : "Show launch command"}
           </button>
           {showExamples && (
-            <div className="mt-2 space-y-2">
-              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
-                {cliExample}
-              </div>
-              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
-                {dockerExample}
-              </div>
+            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+              {launchCommand}
             </div>
           )}
         </div>

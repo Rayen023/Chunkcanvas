@@ -19,10 +19,16 @@ export default function VllmStatus() {
   const [checking, setChecking] = useState(false);
   const [showExample, setShowExample] = useState(false);
 
-  // Example command uses the first endpoint (main one)
-  const exampleCommand = `vllm serve model_name --port ${
-    endpoint ? (new URL(endpoint).port || "8000") : "8000"
-  }`;
+  const getPort = (url: string) => {
+    try {
+      const p = new URL(url).port;
+      return p || (url.startsWith("https") ? "443" : "8000");
+    } catch {
+      return "8000";
+    }
+  };
+
+  const launchCommand = `cd backend && source .venv/bin/activate && uv run vllm serve model_name --port ${getPort(endpoint)}`;
 
   const checkOne = async (url: string): Promise<EndpointStatus> => {
     if (!url) return { status: "idle", models: [] };
@@ -172,9 +178,18 @@ export default function VllmStatus() {
       </summary>
 
       <div className="mt-3 space-y-2 p-3 rounded-lg bg-config-bg border border-config-border">
-        <label className="block text-xs text-gunmetal-light">
-          vLLM endpoints
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="block text-xs text-gunmetal-light">
+            vLLM endpoints
+          </label>
+          <button
+            onClick={checkAll}
+            disabled={checking}
+            className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+          >
+            {checking ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
         
         {/* Main Endpoint */}
         <div className="flex gap-2">
@@ -223,11 +238,11 @@ export default function VllmStatus() {
             onClick={() => setShowExample(!showExample)}
             className="text-[10px] text-sandy hover:underline cursor-pointer"
           >
-            {showExample ? "Hide example command" : "Show example command"}
+            {showExample ? "Hide launch command" : "Show launch command"}
           </button>
           {showExample && (
-            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
-              {exampleCommand}
+            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+              {launchCommand}
             </div>
           )}
         </div>
@@ -236,7 +251,7 @@ export default function VllmStatus() {
           disabled={checking}
           className="w-full rounded-lg bg-sandy px-3 py-1.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
         >
-          {checking ? "Checking All..." : "Check All Statuses"}
+          {checking ? "Checking All..." : "Check Connections"}
         </button>
 
         {/* Status Display */}
@@ -250,12 +265,6 @@ export default function VllmStatus() {
                return (
                  <StatusMessage key={`${url}-${idx}`} type="success" label="Success:" className="break-all">
                    <div className="font-bold mb-1">{url}</div>
-                   <div className="flex items-center gap-1 mb-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="font-semibold">Healthy</span>
-                   </div>
                    {st.models.length > 0 && (
                      <ul className="ml-4 list-disc opacity-90">
                        {st.models.map((m) => (

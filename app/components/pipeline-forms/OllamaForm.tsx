@@ -89,6 +89,8 @@ export default function OllamaForm({ ext }: { ext: string }) {
     el.style.height = `${newHeight}px`;
   }, [prompt]);
 
+  const [showExample, setShowExample] = useState(false);
+
   return (
     <div className="space-y-4">
       {/* Endpoint */}
@@ -103,6 +105,19 @@ export default function OllamaForm({ ext }: { ext: string }) {
           placeholder={DEFAULT_OLLAMA_ENDPOINT}
           className="w-full rounded-lg border border-silver bg-card px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
         />
+        <div className="mt-1">
+          <button
+            onClick={() => setShowExample(!showExample)}
+            className="text-[10px] text-sandy hover:underline cursor-pointer"
+          >
+            {showExample ? "Hide launch command" : "Show launch command"}
+          </button>
+          {showExample && (
+            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+              ollama serve
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Model Selector */}

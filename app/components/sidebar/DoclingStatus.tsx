@@ -1,72 +1,44 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useAppStore } from "@/app/lib/store";
 import StatusMessage from "@/app/components/shared/StatusMessage";
 
-export default function OllamaStatus() {
-  const endpoint = useAppStore((s) => s.ollamaEndpoint);
-  const setEndpoint = useAppStore((s) => s.setOllamaEndpoint);
+export default function DoclingStatus() {
+  const endpoint = useAppStore((s) => s.doclingEndpoint);
+  const setEndpoint = useAppStore((s) => s.setDoclingEndpoint);
+
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
-  const [models, setModels] = useState<string[]>([]);
   const [checking, setChecking] = useState(false);
 
   const check = useCallback(async () => {
     setChecking(true);
     setStatus("idle");
-    setModels([]);
 
     try {
-      // Check if Ollama is running (GET / returns "Ollama is running")
-      const healthRes = await fetch(endpoint, {
+      const base = endpoint.replace(/\/+$/, "");
+      const res = await fetch(`${base}/health`, {
         signal: AbortSignal.timeout(5000),
       });
-      if (!healthRes.ok) {
-        setStatus("error");
-        setChecking(false);
-        return;
-      }
-
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setStatus("ok");
-
-      // List models via /api/tags
-      try {
-        const tagsRes = await fetch(`${endpoint}/api/tags`, {
-          signal: AbortSignal.timeout(10000),
-        });
-        if (tagsRes.ok) {
-          const json = await tagsRes.json();
-          const names = ((json.models ?? []) as { name: string }[]).map(
-            (m) => m.name,
-          );
-          setModels(names);
-        }
-      } catch {
-        /* models fetch optional */
-      }
     } catch {
-      // Try /api/tags as fallback
-      try {
-        const tagsRes = await fetch(`${endpoint}/api/tags`, {
-          signal: AbortSignal.timeout(5000),
-        });
-        if (tagsRes.ok) {
-          const json = await tagsRes.json();
-          const names = ((json.models ?? []) as { name: string }[]).map(
-            (m) => m.name,
-          );
-          setModels(names);
-          setStatus("ok");
-        } else {
-          setStatus("error");
-        }
-      } catch {
-        setStatus("error");
-      }
+      setStatus("error");
     }
 
     setChecking(false);
   }, [endpoint]);
+
+  const getPort = (url: string) => {
+    try {
+      const p = new URL(url).port;
+      return p || (url.startsWith("https") ? "443" : "8020");
+    } catch {
+      return "8020";
+    }
+  };
+
+  const launchCommand = `cd backend && source .venv/bin/activate && uv run uvicorn app.docling_server:app --reload --port ${getPort(endpoint)}`;
 
   const [showExample, setShowExample] = useState(false);
 
@@ -86,13 +58,13 @@ export default function OllamaStatus() {
             d="M9 5l7 7-7 7"
           />
         </svg>
-        Ollama Server Status
+        Docling Server Status
       </summary>
 
       <div className="mt-3 space-y-2 p-3 rounded-lg bg-config-bg border border-config-border">
         <div className="flex items-center justify-between">
           <label className="block text-xs text-gunmetal-light">
-            Ollama endpoint
+            Docling endpoint
           </label>
           <button
             onClick={check}
@@ -117,21 +89,13 @@ export default function OllamaStatus() {
         </button>
 
         {status === "ok" && (
-          <StatusMessage type="success" label="Success:">
-            Ollama server is running
-            {models.length > 0 && (
-              <ul className="mt-1 ml-4 list-disc">
-                {models.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-              </ul>
-            )}
+          <StatusMessage type="success" label="Connected">
+            Docling server is reachable (IBM Granite Docling 258M via vLLM)
           </StatusMessage>
         )}
-
         {status === "error" && (
-          <StatusMessage type="error" label="Error:">
-            Ollama server not reachable at <code>{endpoint}</code>
+          <StatusMessage type="error" label="Offline">
+            Could not reach {endpoint}
           </StatusMessage>
         )}
 
@@ -145,7 +109,7 @@ export default function OllamaStatus() {
           </button>
           {showExample && (
             <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-              ollama serve
+              {launchCommand}
             </div>
           )}
         </div>

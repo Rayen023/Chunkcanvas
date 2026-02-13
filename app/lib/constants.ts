@@ -48,6 +48,7 @@ export const PIPELINE_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
   [PIPELINE.VLLM_VIDEO]: new Set([
     "mp4", "mpeg", "mov", "webm", "mkv", "avi",
   ]),
+  [PIPELINE.DOCLING_PDF]: new Set(["pdf"]),
 };
 
 /** Every extension the app accepts */
@@ -216,6 +217,21 @@ export const DEFAULT_VLLM_EMBEDDING_ENDPOINT = "http://localhost:8001";
 // ─── Ollama ───────────────────────────────────────────────────────────────
 
 export const DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434";
+
+// ─── Chroma ───────────────────────────────────────────────────────────────
+
+export const DEFAULT_CHROMA_ENDPOINT = "http://localhost:8002";
+
+// ─── FAISS ────────────────────────────────────────────────────────────────
+
+export const DEFAULT_FAISS_ENDPOINT = "http://localhost:8010";
+
+// ─── Docling ───────────────────────────────────────────────────────────────────────
+
+export const DEFAULT_DOCLING_ENDPOINT = "http://localhost:8020";
+
+/** The granite-docling model ID — when selected under vLLM, parsing routes through the Docling server. */
+export const GRANITE_DOCLING_MODEL = "ibm-granite/granite-docling-258M";
 
 /**
  * Ollama optimization settings based on official docs:

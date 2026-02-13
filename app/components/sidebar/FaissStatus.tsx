@@ -34,7 +34,16 @@ export default function FaissStatus() {
     }
   }, [apiBase]);
 
-  const launchCommand = "cd backend && uv run uvicorn app.main:app --reload --port 8010";
+  const getPort = (url: string) => {
+    try {
+      const p = new URL(url).port;
+      return p || (url.startsWith("https") ? "443" : "8010");
+    } catch {
+      return "8010";
+    }
+  };
+
+  const launchCommand = `cd backend && source .venv/bin/activate && uv run uvicorn app.faiss_server:app --reload --port ${getPort(apiBase)}`;
 
   return (
     <details className="group">
@@ -52,7 +61,16 @@ export default function FaissStatus() {
       </summary>
 
       <div className="mt-3 space-y-2 p-3 rounded-lg bg-config-bg border border-config-border">
-        <label className="block text-xs text-gunmetal-light">FAISS FastAPI URL</label>
+        <div className="flex items-center justify-between">
+          <label className="block text-xs text-gunmetal-light">FAISS FastAPI URL</label>
+          <button
+            onClick={check}
+            disabled={checking}
+            className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+          >
+            {checking ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
         <input
           type="text"
           value={apiBase}
@@ -66,7 +84,7 @@ export default function FaissStatus() {
           disabled={checking}
           className="w-full rounded-lg bg-sandy px-3 py-1.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
         >
-          {checking ? "Checking…" : "Check"}
+          {checking ? "Checking…" : "Check Connection"}
         </button>
 
         {status === "ok" && (
