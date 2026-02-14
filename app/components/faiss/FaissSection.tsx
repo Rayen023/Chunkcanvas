@@ -293,21 +293,18 @@ export default function FaissSection() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-silver-light bg-card p-4 space-y-4">
-        <h3 className="text-gunmetal font-semibold text-sm">FAISS Local Configuration</h3>
-
+    <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-gunmetal">FastAPI URL</label>
+              <label className="block text-sm font-medium text-gunmetal">FastAPI URL</label>
               <button
                 type="button"
                 onClick={() => handleListIndexes()}
                 disabled={isListing || !faissApiBase.trim()}
                 className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
               >
-                Refresh
+                {isListing ? "Refreshing..." : "Refresh"}
               </button>
             </div>
             <input
@@ -334,14 +331,14 @@ export default function FaissSection() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-medium text-gunmetal">Indexes Directory</label>
+              <label className="block text-sm font-medium text-gunmetal">Indexes Directory</label>
               <button
                 type="button"
                 onClick={() => handleListIndexes()}
                 disabled={isListing || !indexesDir.trim()}
                 className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
               >
-                Refresh
+                {isListing ? "Refreshing..." : "Refresh"}
               </button>
             </div>
             <input
@@ -355,53 +352,134 @@ export default function FaissSection() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {([
-            { key: "existing", label: "Use Existing Index" },
-            { key: "create", label: "Create New Index" },
-          ] as const).map((mode) => {
-            const selected = dbMode === mode.key;
-            return (
-              <button
-                key={mode.key}
-                type="button"
-                onClick={() => setDbMode(mode.key)}
-                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${selected
-                  ? "border-sandy bg-sandy/10 text-gunmetal"
-                  : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50"
-                }`}
-              >
-                {mode.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Select Index */}
+        <div>
+          <label className="block text-sm font-medium text-gunmetal mb-2">
+            Select Index
+          </label>
 
-        {dbMode === "existing" && (
-          <div className="space-y-3 rounded-lg border border-silver-light p-3">
-            <label className="block text-xs font-medium text-gunmetal">Existing FAISS DB Path</label>
-            <input
-              type="text"
-              value={dbPath}
-              onChange={(e) => setDbPath(e.target.value)}
-              placeholder="/tmp/chunkcanvas/index.faiss"
-              className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-            />
-            <p className="text-[11px] text-silver-dark">Paste an existing path directly, or pick one discovered in the selected directory.</p>
+          {/* Create New Index — collapsible */}
+          <details
+            open={dbMode === "create"}
+            onToggle={(e) => setDbMode((e.target as HTMLDetailsElement).open ? "create" : "existing")}
+            className="group rounded-lg border border-silver-light overflow-hidden mb-4"
+          >
+            <summary className="cursor-pointer list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
+              <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="text-sm font-medium text-gunmetal">Create New Index</span>
+              <svg className="h-4 w-4 text-sandy ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </summary>
+            <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gunmetal-light mb-1">New Index Name</label>
+                <input
+                  type="text"
+                  value={newDbName}
+                  onChange={(e) => setNewDbName(e.target.value)}
+                  placeholder="index"
+                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                />
+                <p className="mt-1 text-[11px] text-silver-dark">The final file path is built as directory + name + .faiss.</p>
+              </div>
+
+              {newDbPathPreview && (
+                <div>
+                  <label className="block text-xs font-medium text-gunmetal-light mb-1">Resulting Path</label>
+                  <div className="w-full rounded-lg border border-dashed border-silver px-3 py-2 text-xs text-silver-dark bg-config-bg break-all">
+                    {newDbPathPreview}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-medium text-gunmetal-light mb-1">Dimensions</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={dimension}
+                    onChange={(e) => setDimension(Number(e.target.value))}
+                    className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gunmetal-light mb-1">Metric</label>
+                  <select
+                    value={metric}
+                    onChange={(e) => setMetric(e.target.value as FaissMetric)}
+                    className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none bg-card"
+                  >
+                    {METRIC_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-silver-dark">{metricHelp}</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={isCreating || !canCreate}
+                className="w-full rounded-lg bg-sandy px-3 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center justify-center gap-2"
+              >
+                {isCreating ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Creating…
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create Index
+                  </>
+                )}
+              </button>
+            </div>
+          </details>
+
+          {/* Index Path & Discovered Indexes */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gunmetal-light mb-1">Index Path</label>
+              <input
+                type="text"
+                value={dbPath}
+                onChange={(e) => setDbPath(e.target.value)}
+                placeholder="/tmp/chunkcanvas/index.faiss"
+                className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+              />
+              <p className="text-[11px] text-silver-dark mt-1">Paste an existing path directly, or pick one discovered below.</p>
+            </div>
+
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-gunmetal">Discovered Indexes</span>
+              <span className="text-sm font-medium text-gunmetal">Discovered Indexes</span>
               <button
                 type="button"
                 onClick={() => handleListIndexes()}
                 disabled={isListing || !indexesDir.trim()}
                 className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
               >
-                Refresh
+                {isListing ? "Refreshing..." : "Refresh"}
               </button>
             </div>
+
             {availableIndexes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-silver p-3 text-xs text-silver-dark text-center">
-                No discovered indexes yet. Click refresh to list indexes from this directory.
+              <div className="rounded-lg border border-dashed border-silver p-4 text-center">
+                <p className="text-xs text-silver-dark">
+                  No indexes found — click refresh to scan the indexes directory.
+                </p>
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -429,96 +507,66 @@ export default function FaissSection() {
                 })}
               </div>
             )}
+
             <div className="rounded-lg border border-dashed border-silver px-3 py-2 text-[11px] text-silver-dark break-all bg-config-bg">
               Selected path: {dbPath || "None"}
             </div>
           </div>
-        )}
+        </div>
 
-        {dbMode === "create" && (
-          <div className="space-y-3 rounded-lg border border-silver-light p-3">
-            <div>
-              <label className="block text-xs font-medium text-gunmetal mb-1">New Index Name</label>
-              <input
-                type="text"
-                value={newDbName}
-                onChange={(e) => setNewDbName(e.target.value)}
-                placeholder="index"
-                className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-              />
-              <p className="mt-1 text-[11px] text-silver-dark">The final file path is built as directory + name + .faiss.</p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gunmetal mb-1">Resulting FAISS Path</label>
-              <div className="w-full rounded-lg border border-dashed border-silver px-3 py-2 text-xs text-silver-dark bg-config-bg break-all">
-                {newDbPathPreview || "Provide both directory and index name to preview the final path."}
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="block text-xs font-medium text-gunmetal mb-1">Dimension</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={dimension}
-                  onChange={(e) => setDimension(Number(e.target.value))}
-                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gunmetal mb-1">Metric</label>
-                <select
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value as FaissMetric)}
-                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none bg-card"
-                >
-                  {METRIC_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-silver-dark">{metricHelp}</p>
-
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={isCreating || !canCreate}
-              className="rounded-lg bg-sandy px-4 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            >
-              {isCreating ? "Creating…" : "Create Index"}
-            </button>
-          </div>
-        )}
-
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             type="button"
             onClick={handleUpsert}
             disabled={!canUpsert || isUpserting || !dbPath.trim()}
-            className="rounded-lg bg-sandy px-4 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
-            {isUpserting ? "Updating…" : "Upsert Chunks"}
+            {isUpserting ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Uploading…
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Chunks to FAISS
+              </>
+            )}
           </button>
 
           <button
             type="button"
             onClick={handleToggleContent}
             disabled={isLoading || !dbPath.trim()}
-            className="rounded-lg border border-silver-light bg-card px-4 py-2.5 text-sm font-medium text-gunmetal hover:border-sandy/50 hover:bg-sandy/5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="flex items-center justify-center gap-2 rounded-lg border border-silver-light bg-card px-4 py-3 text-sm font-medium text-gunmetal hover:border-sandy/50 hover:bg-sandy/5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
-            {isLoading ? "Loading…" : content ? "Hide Records" : "Show Records"}
+            {isLoading ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Loading…
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+                {content ? "Hide Records" : "View Records"}
+              </>
+            )}
           </button>
         </div>
 
         {!hasEmbeddings && (
           <StatusMessage type="warning" label="Note:">
-            Generate embeddings in the Embeddings step above before upserting to FAISS.
+            You must generate embeddings in the Embeddings step above before uploading.
           </StatusMessage>
         )}
 
@@ -532,7 +580,6 @@ export default function FaissSection() {
             {success}
           </StatusMessage>
         )}
-      </div>
 
       {content && (
         <div className="rounded-xl border border-silver-light bg-card p-4 space-y-4">
