@@ -79,6 +79,13 @@ export default function FaissSection() {
   const metric = useAppStore((s) => s.faissMetric);
   const setMetric = useAppStore((s) => s.setFaissMetric);
 
+  const isUpserting = useAppStore((s) => s.isUploadingFaiss);
+  const setIsUpserting = useAppStore((s) => s.setIsUploadingFaiss);
+  const error = useAppStore((s) => s.faissError);
+  const setError = useAppStore((s) => s.setFaissError);
+  const success = useAppStore((s) => s.faissSuccess);
+  const setSuccess = useAppStore((s) => s.setFaissSuccess);
+
   const hasEmbeddings =
     !!embeddingsData &&
     embeddingsData.length === editedChunks.length &&
@@ -86,15 +93,12 @@ export default function FaissSection() {
     embeddingsForChunksHash === chunksHash;
 
   const [isCreating, setIsCreating] = useState(false);
-  const [isUpserting, setIsUpserting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isListing, setIsListing] = useState(false);
   const [showLaunchCommand, setShowLaunchCommand] = useState(false);
   const [offset, setOffset] = useState(0);
   const [availableIndexes, setAvailableIndexes] = useState<FaissIndexEntry[]>([]);
   const [content, setContent] = useState<FaissContentResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const didAutoListRef = useRef(false);
 
   const canUpsert = hasEmbeddings && editedChunks.length > 0;
@@ -127,7 +131,6 @@ export default function FaissSection() {
     setIsListing(true);
     if (!silent) {
       setError(null);
-      setSuccess(null);
     }
     try {
       const params = new URLSearchParams({
@@ -166,7 +169,7 @@ export default function FaissSection() {
     } finally {
       setIsListing(false);
     }
-  }, [dbPath, indexesDir, normalizedBase, setDbPath]);
+  }, [dbPath, indexesDir, normalizedBase, setDbPath, setError, setSuccess]);
 
   useEffect(() => {
     if (didAutoListRef.current) return;
@@ -259,7 +262,6 @@ export default function FaissSection() {
     if (!dbPath.trim()) return;
     setIsLoading(true);
     setError(null);
-    setSuccess(null);
     try {
       const params = new URLSearchParams({
         db_path: dbPath.trim(),

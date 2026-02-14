@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/app/lib/store";
 import StatusMessage from "@/app/components/shared/StatusMessage";
+import { VLLM_RECOMMENDED_MODELS } from "@/app/lib/constants";
 
 type EndpointStatus = {
   status: "idle" | "ok" | "error";
@@ -17,18 +18,18 @@ export default function VllmStatus() {
 
   const [statuses, setStatuses] = useState<Record<string, EndpointStatus>>({});
   const [checking, setChecking] = useState(false);
-  const [showExample, setShowExample] = useState(false);
 
-  const getPort = (url: string) => {
-    try {
-      const p = new URL(url).port;
-      return p || (url.startsWith("https") ? "443" : "8000");
-    } catch {
-      return "8000";
-    }
+  const getLaunchCommands = () => {
+    return Object.values(VLLM_RECOMMENDED_MODELS).map((rec: { model: string; port: number; extraFlags?: string; description: string }) => {
+      const flags = rec.extraFlags ? ` ${rec.extraFlags}` : "";
+      return {
+        label: rec.description,
+        cmd: `vllm serve ${rec.model} --port ${rec.port}${flags}`
+      };
+    });
   };
 
-  const launchCommand = `cd backend && source .venv/bin/activate && uv run vllm serve model_name --port ${getPort(endpoint)}`;
+  const launchCommands = getLaunchCommands();
 
   const checkOne = async (url: string): Promise<EndpointStatus> => {
     if (!url) return { status: "idle", models: [] };
@@ -158,6 +159,8 @@ export default function VllmStatus() {
     setAdditionalEndpoints(next);
   };
 
+  const [showCommands, setShowCommands] = useState(false);
+
   return (
     <details className="group">
       <summary className="cursor-pointer text-sm font-semibold text-gunmetal flex items-center gap-2">
@@ -233,16 +236,23 @@ export default function VllmStatus() {
           </div>
         ))}
 
-        <div className="mt-1">
+        <div className="mt-3">
           <button
-            onClick={() => setShowExample(!showExample)}
+            onClick={() => setShowCommands(!showCommands)}
             className="text-[10px] text-sandy hover:underline cursor-pointer"
           >
-            {showExample ? "Hide launch command" : "Show launch command"}
+            {showCommands ? "Hide recommended commands" : "Show recommended commands"}
           </button>
-          {showExample && (
-            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-              {launchCommand}
+          {showCommands && (
+            <div className="mt-2 space-y-2">
+              {launchCommands.map((item, i) => (
+                <div key={i}>
+                  <p className="text-[9px] font-medium text-gunmetal-light mb-0.5 uppercase tracking-tighter">{item.label}</p>
+                  <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                    {item.cmd}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

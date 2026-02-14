@@ -212,7 +212,36 @@ export const DEFAULT_SEPARATORS_DISPLAY = "\\n\\n, \\n# , \\n## , \\n### ";
 // ─── vLLM ─────────────────────────────────────────────────────────────────
 
 export const DEFAULT_VLLM_ENDPOINT = "http://localhost:8000";
-export const DEFAULT_VLLM_EMBEDDING_ENDPOINT = "http://localhost:8001";
+export const DEFAULT_VLLM_EMBEDDING_ENDPOINT = "http://localhost:8007";
+
+/**
+ * Recommended vLLM models for different modalities.
+ * Each uses a unique port to avoid conflicts when running simultaneously.
+ */
+export const VLLM_RECOMMENDED_MODELS = {
+  docling: {
+    model: "ibm-granite/granite-docling-258M",
+    port: 8005,
+    description: "Docling",
+  },
+  audio: {
+    model: "openai/whisper-large-v3-turbo",
+    port: 8006,
+    description: "Audio transcription",
+  },
+  embeddings: {
+    model: "jinaai/jina-embeddings-v3",
+    port: 8007,
+    extraFlags: "--trust-remote-code",
+    description: "Text embeddings",
+  },
+  multimodal: {
+    model: "Qwen/Qwen3-VL-8B-Instruct-FP8",
+    port: 8008,
+    extraFlags: "--max-model-len 32000",
+    description: "Vision (Image, Video, PDF)",
+  },
+} as const;
 
 // ─── Ollama ───────────────────────────────────────────────────────────────
 

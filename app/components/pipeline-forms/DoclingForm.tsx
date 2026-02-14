@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAppStore } from "@/app/lib/store";
-import { DEFAULT_VLLM_ENDPOINT, DEFAULT_DOCLING_ENDPOINT, GRANITE_DOCLING_MODEL } from "@/app/lib/constants";
+import { DEFAULT_VLLM_ENDPOINT, DEFAULT_DOCLING_ENDPOINT, GRANITE_DOCLING_MODEL, VLLM_RECOMMENDED_MODELS } from "@/app/lib/constants";
 
 export default function DoclingForm({ ext }: { ext: string }) {
   const config = useAppStore((s) => s.configByExt[ext]);
@@ -18,7 +18,6 @@ export default function DoclingForm({ ext }: { ext: string }) {
   const [doclingStatus, setDoclingStatus] = useState<"idle" | "ok" | "error">("idle");
   const [checkingVllm, setCheckingVllm] = useState(false);
   const [checkingDocling, setCheckingDocling] = useState(false);
-  const [showExample, setShowExample] = useState(false);
 
   const checkVllm = useCallback(async () => {
     setCheckingVllm(true);
@@ -69,11 +68,13 @@ export default function DoclingForm({ ext }: { ext: string }) {
     try {
       const p = new URL(url).port;
       if (p) return p;
-      return url.startsWith("https") ? "443" : url.includes("8020") ? "8020" : "8000";
+      return url.startsWith("https") ? "443" : url.includes("8020") ? "8020" : "8002";
     } catch {
-      return "8000";
+      return "8002";
     }
   };
+
+  const [showExample, setShowExample] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -180,7 +181,7 @@ export default function DoclingForm({ ext }: { ext: string }) {
             <div>
               <p className="text-[10px] font-medium text-gunmetal mb-1 uppercase tracking-wider">Start vLLM (Inference)</p>
               <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                vllm serve {GRANITE_DOCLING_MODEL} --port {getPort(vllmEndpoint)}
+                vllm serve {GRANITE_DOCLING_MODEL} --port {VLLM_RECOMMENDED_MODELS.docling.port}
               </div>
             </div>
             <div>

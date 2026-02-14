@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAppStore } from "@/app/lib/store";
-import { DEFAULT_VLLM_ENDPOINT, DEFAULT_PROMPTS } from "@/app/lib/constants";
-import { PIPELINE_MODALITY } from "@/app/lib/types";
+import { DEFAULT_VLLM_ENDPOINT, DEFAULT_PROMPTS, VLLM_RECOMMENDED_MODELS } from "@/app/lib/constants";
+import { PIPELINE_MODALITY, PIPELINE } from "@/app/lib/types";
 import type { Modality } from "@/app/lib/types";
 import StatusMessage from "@/app/components/shared/StatusMessage";
 
@@ -32,7 +32,6 @@ export default function VllmForm({ ext }: { ext: string }) {
   const [availableModels, setAvailableModels] = useState<{ id: string; max_model_len?: number }[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
-  const [showExample, setShowExample] = useState(false);
 
   const fetchModels = useCallback(async () => {
     if (!endpoint) return;
@@ -69,16 +68,19 @@ export default function VllmForm({ ext }: { ext: string }) {
     return () => clearTimeout(timer);
   }, [endpoint, fetchModels]);
 
-  const getPort = (url: string) => {
-    try {
-      const p = new URL(url).port;
-      return p || (url.startsWith("https") ? "443" : "8000");
-    } catch {
-      return "8000";
-    }
+  const getRecommendedCommand = () => {
+    let rec: { model: string; port: number; extraFlags?: string; description: string } = VLLM_RECOMMENDED_MODELS.multimodal;
+    if (pipeline === PIPELINE.DOCLING_PDF) rec = VLLM_RECOMMENDED_MODELS.docling;
+    else if (modality === "audio") rec = VLLM_RECOMMENDED_MODELS.audio;
+
+    // Always use the recommended model and port for the example command, regardless of current state
+    const m = rec.model;
+    const p = rec.port;
+    const flags = rec.extraFlags ? ` ${rec.extraFlags}` : "";
+    return `vllm serve ${m} --port ${p}${flags}`;
   };
 
-  const launchCommand = `vllm serve ${model || "model_name"} --port ${getPort(endpoint)}`;
+  const launchCommand = getRecommendedCommand();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -90,6 +92,8 @@ export default function VllmForm({ ext }: { ext: string }) {
     const newHeight = Math.min(Math.max(el.scrollHeight + 2, 100), 300);
     el.style.height = `${newHeight}px`;
   }, [prompt]);
+
+  const [showExample, setShowExample] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -113,8 +117,10 @@ export default function VllmForm({ ext }: { ext: string }) {
             {showExample ? "Hide launch command" : "Show launch command"}
           </button>
           {showExample && (
-            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-              {launchCommand}
+            <div className="mt-1">
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                {launchCommand}
+              </div>
             </div>
           )}
         </div>

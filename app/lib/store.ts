@@ -140,6 +140,9 @@ export interface AppState {
   faissDbMode: FaissDbMode;
   faissDimension: number;
   faissMetric: FaissMetric;
+  isUploadingFaiss: boolean;
+  faissError: string | null;
+  faissSuccess: string | null;
   selectedVectorDb: VectorDbProvider;
 
   // ── UI state ───────────────────────────────────
@@ -273,6 +276,9 @@ export interface AppActions {
   setFaissDbMode: (mode: FaissDbMode) => void;
   setFaissDimension: (dimension: number) => void;
   setFaissMetric: (metric: FaissMetric) => void;
+  setIsUploadingFaiss: (v: boolean) => void;
+  setFaissError: (err: string | null) => void;
+  setFaissSuccess: (msg: string | null) => void;
   setSelectedVectorDb: (provider: VectorDbProvider) => void;
 
   // Sidebar
@@ -422,6 +428,9 @@ export const useAppStore = create<AppState & AppActions>()(
   faissDbMode: "existing",
   faissDimension: DEFAULT_EMBEDDING_DIMENSIONS,
   faissMetric: "cosine",
+  isUploadingFaiss: false,
+  faissError: null,
+  faissSuccess: null,
   selectedVectorDb: "pinecone",
   allChunksCollapsed: true,
   sidebarCollapsed: false,
@@ -478,6 +487,8 @@ export const useAppStore = create<AppState & AppActions>()(
         pineconeError: null,
         chromaSuccess: null,
         chromaError: null,
+        faissSuccess: null,
+        faissError: null,
       });
       return;
     }
@@ -538,6 +549,8 @@ export const useAppStore = create<AppState & AppActions>()(
         pineconeError: null,
         chromaSuccess: null,
         chromaError: null,
+        faissSuccess: null,
+        faissError: null,
       });
       return;
     }
@@ -648,6 +661,7 @@ export const useAppStore = create<AppState & AppActions>()(
       embeddingsForChunksHash: nextEmbeddingsHash,
       pineconeSuccess: null,
       chromaSuccess: null,
+      faissSuccess: null,
     });
   },
   setPipeline: (pipeline) => {
@@ -791,6 +805,7 @@ export const useAppStore = create<AppState & AppActions>()(
       embeddingsForChunksHash: null,
       pineconeSuccess: null,
       chromaSuccess: null,
+      faissSuccess: null,
     }),
   updateChunk: (index, text) =>
     set((s) => {
@@ -802,6 +817,7 @@ export const useAppStore = create<AppState & AppActions>()(
         embeddingsForChunksHash: null,
         pineconeSuccess: null,
         chromaSuccess: null,
+        faissSuccess: null,
       };
     }),
   deleteChunk: (index) =>
@@ -833,6 +849,7 @@ export const useAppStore = create<AppState & AppActions>()(
         embeddingsForChunksHash: nextEmbeddingsHash,
         pineconeSuccess: null,
         chromaSuccess: null,
+        faissSuccess: null,
       };
     }),
   setIsChunking: (v) => set({ isChunking: v }),
@@ -889,6 +906,9 @@ export const useAppStore = create<AppState & AppActions>()(
   setFaissDbMode: (mode) => set({ faissDbMode: mode }),
   setFaissDimension: (dimension) => set({ faissDimension: dimension }),
   setFaissMetric: (metric) => set({ faissMetric: metric }),
+  setIsUploadingFaiss: (v) => set({ isUploadingFaiss: v }),
+  setFaissError: (err) => set({ faissError: err }),
+  setFaissSuccess: (msg) => set({ faissSuccess: msg }),
   setSelectedVectorDb: (provider) => set({ selectedVectorDb: provider }),
 
   setAllChunksCollapsed: (v) => set({ allChunksCollapsed: v }),
@@ -1004,6 +1024,9 @@ export const useAppStore = create<AppState & AppActions>()(
       faissDbMode: s.faissDbMode || "existing",
       faissDimension: s.faissDimension || DEFAULT_EMBEDDING_DIMENSIONS,
       faissMetric: s.faissMetric || "cosine",
+      isUploadingFaiss: false,
+      faissError: null,
+      faissSuccess: null,
       allChunksCollapsed: true,
       scrollActiveStep: null,
       sidebarWidth: 288,
@@ -1042,6 +1065,8 @@ export const useAppStore = create<AppState & AppActions>()(
       resets.pineconeError = null;
       resets.chromaSuccess = null;
       resets.chromaError = null;
+      resets.faissSuccess = null;
+      resets.faissError = null;
     }
     set(resets);
   },

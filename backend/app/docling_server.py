@@ -228,6 +228,3 @@ async def parse_document_stream(
             "X-Accel-Buffering": "no",
         },
     )
-
-
-#uv run uvicorn app.docling_server:app --reload --port 8020

@@ -17,7 +17,11 @@ const MAX_WIDTH = 480;
 function ResetButton() {
   const resetAll = useAppStore((s) => s.resetAll);
   const pineconeSuccess = useAppStore((s) => s.pineconeSuccess);
+  const chromaSuccess = useAppStore((s) => s.chromaSuccess);
+  const faissSuccess = useAppStore((s) => s.faissSuccess);
   const [confirming, setConfirming] = useState(false);
+
+  const hasSuccess = !!(pineconeSuccess || chromaSuccess || faissSuccess);
 
   const handleClick = () => {
     if (confirming) {
@@ -36,7 +40,7 @@ function ResetButton() {
         w-full flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer
         ${confirming
           ? "border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
-          : pineconeSuccess
+          : hasSuccess
             ? "border-sandy bg-sandy text-white hover:bg-sandy-dark animate-pulse shadow-md"
             : "border-silver-light bg-card text-silver-dark hover:border-sandy hover:text-sandy"
         }

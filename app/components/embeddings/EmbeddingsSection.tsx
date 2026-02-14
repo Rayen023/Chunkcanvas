@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useAppStore } from "@/app/lib/store";
-import { VOYAGE_MODELS, COHERE_MODELS, EMBEDDING_MODELS, OPENROUTER_DEFAULT_EMBEDDING_MODEL, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS } from "@/app/lib/constants";
+import { VOYAGE_MODELS, COHERE_MODELS, EMBEDDING_MODELS, OPENROUTER_DEFAULT_EMBEDDING_MODEL, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, VLLM_RECOMMENDED_MODELS } from "@/app/lib/constants";
 import ActionRow from "@/app/components/downloads/ActionRow";
 import { ProviderSelector, ConfigContainer, ConfigHeader, ProviderOption } from "@/app/components/shared/ConfigSection";
 import StatusMessage from "@/app/components/shared/StatusMessage";
@@ -126,7 +126,6 @@ export default function EmbeddingsSection() {
   const [vllmEmbedModels, setVllmEmbedModels] = useState<VllmEmbedModel[]>([]);
   const [loadingVllmModels, setLoadingVllmModels] = useState(false);
   const [vllmModelError, setVllmModelError] = useState<string | null>(null);
-  const [showVllmExample, setShowVllmExample] = useState(false);
 
   // Shared embedding state
   const embeddingsData = useAppStore((s) => s.embeddingsData);
@@ -142,6 +141,7 @@ export default function EmbeddingsSection() {
 
   const [downloadingJson, setDownloadingJson] = useState(false);
   const [generatingScript, setGeneratingScript] = useState(false);
+  const [showVllmExample, setShowVllmExample] = useState(false);
 
   // Script Dependencies
   const chunkingParams = useAppStore((s) => s.chunkingParams);
@@ -869,11 +869,13 @@ export default function EmbeddingsSection() {
                   onClick={() => setShowVllmExample(!showVllmExample)}
                   className="text-[10px] text-sandy hover:underline cursor-pointer"
                 >
-                  {showVllmExample ? "Hide example command" : "Show example command"}
+                  {showVllmExample ? "Hide launch command" : "Show launch command"}
                 </button>
                 {showVllmExample && (
-                  <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto">
-                    vllm serve {vllmEmbeddingModel || "jinaai/jina-embeddings-v3"} --port {vllmEmbeddingEndpoint ? new URL(vllmEmbeddingEndpoint).port : "8001"}
+                  <div className="mt-1">
+                    <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                      vllm serve {vllmEmbeddingModel || VLLM_RECOMMENDED_MODELS.embeddings.model} --port {VLLM_RECOMMENDED_MODELS.embeddings.port} {VLLM_RECOMMENDED_MODELS.embeddings.extraFlags}
+                    </div>
                   </div>
                 )}
               </div>
