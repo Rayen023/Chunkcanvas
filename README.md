@@ -1,56 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChunkCanvas
 
-## Getting Started
+ChunkCanvas is a document processing GUI and pipeline builder that transforms raw files (PDF, Images, Audio, Video, Excel, CSV) into structured, chunked data for vector databases. It supports local AI models (Ollama, vLLM, Docling) and cloud providers (OpenRouter).
 
-First, run the development server:
+## Quick Start (Docker)
+
+The easiest way to run the full stack (Frontend + FAISS Backend + Docling Backend) is with Docker.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Rayen023/chunkcanvas.git
+    cd chunkcanvas/frontend
+    ```
+
+2.  **Configure Environment Variables:**
+    Create a `.env.local` file in the `frontend` directory. You can copy the example below:
+
+    ```bash
+    # .env.local
+
+    # Public API URL (Required for browser access)
+    NEXT_PUBLIC_API_URL=http://localhost:3000
+
+    # Backend URLs (Internal Docker communication)
+    BACKEND_FAISS_URL=http://backend-faiss:8010
+    BACKEND_DOCLING_URL=http://backend-docling:8020
+
+    # NEXT_PUBLIC_OPENROUTER_API_KEY=sk-or-...
+    # NEXT_PUBLIC_VOYAGEAI_API_KEY=pa-...
+    # NEXT_PUBLIC_COHERE_API_KEY=...
+    # NEXT_PUBLIC_PINECONE_API_KEY=pc-...
+    ```
+
+3.  **Run with Docker Compose:**
+    ```bash
+    docker compose up -d
+    ```
+    - **Frontend:** [http://localhost:3000](http://localhost:3000)
+    - **FAISS Backend:** [http://localhost:8010/docs](http://localhost:8010/docs)
+    - **Docling Backend:** [http://localhost:8020/docs](http://localhost:8020/docs)
+
+4.  **Stop:**
+    ```bash
+    docker compose down
+    ```
+
+## Manual Setup (Development)
+
+If you prefer to run services individually without Docker:
+
+### 1. Frontend (Next.js)
 
 ```bash
+cd frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+Open [http://localhost:3000](http://localhost:3000).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Backend (FastAPI)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The backend manages local FAISS indexes and Docling parsing.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## FAISS Backend (FastAPI + uv)
-
-ChunkCanvas now includes a local Python backend for FAISS management in `backend/`.
+**Prerequisites:** Python 3.11+, `uv` (recommended) or `pip`.
 
 ```bash
-cd backend && source .venv/bin/activate && uvicorn app.faiss_server:app --reload --port 8010
+cd frontend/backend
+
+# Using uv (Recommended)
+uv sync
+uv run uvicorn app.faiss_server:app --reload --port 8010
+# In a separate terminal for Docling:
+uv run uvicorn app.docling_server:app --reload --port 8020
 ```
 
-Then use the **FAISS** option in Step 6 of the app and point it to `http://localhost:8010`.
+## Local AI Setup
 
-## Learn More
+To use local AI features, you need running instances of Ollama or vLLM.
 
-To learn more about Next.js, take a look at the following resources:
+### Ollama
+1.  Install [Ollama](https://ollama.com/).
+2.  Pull models: `ollama pull ministral-3:latest`, `ollama pull qwen3-embedding:0.6b`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### vLLM
+1.  Install `vllm`.
+2.  Run an OpenAI-compatible server:
+    ```bash
+    vllm serve wen/Qwen3-VL-8B-Instruct-FP8 --port 8000
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Features
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-# Ollama
-/mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/ollama_models
-
-curl http://localhost:11434/api/tags
-
-sudo chown -R ollama:ollama /mnt/0a56cc8f-eb63-4f04-b727-0615646b8bdb/ollama_models
-
-
-https://ollama.com/search?c=vision
+- **Multi-modal parsing:** Text, Vision, Audio, Video via local (Ollama/vLLM/Docling) or cloud (OpenRouter) models.
+- **Intelligent Chunking:** Customizable text/table chunking.
+- **Embedding Generation:** Voyage, OpenRouter, Ollama, vLLM, Cohere.
+- **Vector DB Integration:** Pinecone, ChromaDB (Local/Cloud), MongoDB and local FAISS.
+- **Export:** JSON chunks and auto-generated Python pipeline scripts.

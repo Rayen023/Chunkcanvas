@@ -1,0 +1,51 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chunkcanvas-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      # Adjust backend URLs if they are called server-side vs client-side
+      # If client-side, they need to be accessible from the browser (localhost)
+      # If server-side, they can use container names (backend-faiss:8010)
+    restart: unless-stopped
+    depends_on:
+      - backend-faiss
+      - backend-docling
+
+  backend-faiss:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chunkcanvas-backend-faiss
+    command: uvicorn app.faiss_server:app --host 0.0.0.0 --port 8010
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./backend/data:/app/data # Persistence for FAISS indexes
+    env_file:
+      - .env.local
+    restart: unless-stopped
+
+  backend-docling:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chunkcanvas-backend-docling
+    command: uvicorn app.docling_server:app --host 0.0.0.0 --port 8020
+    ports:
+      - "8020:8020"
+    env_file:
+      - .env.local
+    environment:
+      # Assuming vLLM runs on the host machine. 
+      # host.docker.internal works on Docker Desktop (Mac/Win) and can be enabled on Linux.
+      - VLLM_URL=http://host.docker.internal:8002/v1/chat/completions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

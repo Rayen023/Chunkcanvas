@@ -88,7 +88,7 @@ export default function ChunkList({
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setAllChunksCollapsed(!allChunksCollapsed)}
@@ -103,24 +103,26 @@ export default function ChunkList({
                 <svg className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                 </svg>
-                Expand
+                <span className="hidden sm:inline">Expand</span>
+                <span className="sm:hidden">All</span>
               </>
             ) : (
               <>
                 <svg className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
                 </svg>
-                Collapse
+                <span className="hidden sm:inline">Collapse</span>
+                <span className="sm:hidden">All</span>
               </>
             )}
           </button>
 
-          <span className={compact ? "text-[11px] text-gunmetal-light" : "text-sm text-gunmetal-light"}>
+          <span className={compact ? "text-[10px] sm:text-[11px] text-gunmetal-light whitespace-nowrap" : "text-xs sm:text-sm text-gunmetal-light whitespace-nowrap"}>
             <strong>{editedChunks.length}</strong>
-            <span className="ml-1 text-silver-dark">chunks</span>
-            <span className="mx-1.5 text-silver">•</span>
+            <span className="ml-1 text-silver-dark hidden sm:inline">chunks</span>
+            <span className="mx-1 text-silver">•</span>
             <strong>{totalTokens.toLocaleString()}</strong>
-            <span className="ml-1 text-silver-dark">tokens</span>
+            <span className="ml-1 text-silver-dark hidden sm:inline">tokens</span>
           </span>
         </div>
       </div>

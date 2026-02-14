@@ -134,12 +134,14 @@ export default function ChunkingParams() {
     >
       {/* Strategy + Defaults */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-silver-light/20 p-1.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-silver-light/20 p-1.5 shrink-0">
             <Image src="/tech-icons/langchain-color.svg" alt="LangChain" width={32} height={32} className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0">
-            <div className="text-base font-bold text-gunmetal">Recursive character text splitter (Langchain)</div>
+            <div className="text-sm sm:text-base font-bold text-gunmetal leading-tight">
+              Recursive character text splitter (Langchain)
+            </div>
           </div>
         </div>
 
@@ -147,13 +149,14 @@ export default function ChunkingParams() {
           <button
             type="button"
             onClick={resetChunkingDefaults}
-            className="flex items-center gap-1.5 rounded-lg border border-sandy bg-sandy/10 px-2.5 py-1 text-xs font-medium text-sandy hover:bg-sandy hover:text-white transition-colors cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 rounded-lg border border-sandy bg-sandy/10 px-2.5 py-1 text-[10px] sm:text-xs font-medium text-sandy hover:bg-sandy hover:text-white transition-colors cursor-pointer shrink-0"
             title="Reset chunking parameters to defaults"
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Defaults
+            <span className="hidden sm:inline">Defaults</span>
+            <span className="sm:hidden">Reset</span>
           </button>
         )}
       </div>
@@ -163,9 +166,9 @@ export default function ChunkingParams() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Chunk size */}
           <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2 hover:border-sandy focus-within:border-sandy transition-colors">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-sm font-semibold text-gunmetal">Chunk size (characters)</label>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={() => handleChunkSizeChange(chunkingParams.chunkSize - 128)}
@@ -182,7 +185,7 @@ export default function ChunkingParams() {
                     step={128}
                     value={chunkingParams.chunkSize}
                     onChange={(e) => handleChunkSizeChange(Number(e.target.value))}
-                    className="w-16 bg-transparent text-right text-sm font-mono font-semibold text-sandy tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-14 sm:w-16 bg-transparent text-right text-sm font-mono font-semibold text-sandy tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="ml-1 text-[11px] font-medium text-silver-dark">chars</span>
                 </div>
@@ -206,26 +209,14 @@ export default function ChunkingParams() {
                 </button>
               </div>
             </div>
-            <input
-              type="range"
-              min={128}
-              max={Math.max(128, maxContentLength)}
-              step={128}
-              value={chunkingParams.chunkSize}
-              onChange={(e) => handleChunkSizeChange(Number(e.target.value))}
-              className="w-full h-1 rounded-full appearance-none cursor-pointer accent-sandy bg-silver/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sandy [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-sandy [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-            />
-            <div className="flex justify-between text-[11px] font-medium text-silver-dark tabular-nums">
-              <span>128 chars</span>
-              <span>{Math.max(128, maxContentLength)} chars</span>
-            </div>
+            {/* ... slider ... */}
           </div>
 
           {/* Overlap */}
           <div className="rounded-lg border border-silver-light bg-card p-3 space-y-2 hover:border-sandy focus-within:border-sandy transition-colors">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-sm font-semibold text-gunmetal">Overlap (characters)</label>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setChunkingParams({ chunkOverlap: Math.max(0, chunkingParams.chunkOverlap - 10) })}
@@ -250,7 +241,7 @@ export default function ChunkingParams() {
                         ),
                       })
                     }
-                    className="w-16 bg-transparent text-right text-sm font-mono font-semibold text-sandy tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-14 sm:w-16 bg-transparent text-right text-sm font-mono font-semibold text-sandy tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="ml-1 text-[11px] font-medium text-silver-dark">chars</span>
                 </div>
@@ -278,21 +269,7 @@ export default function ChunkingParams() {
                 </button>
               </div>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0, chunkingParams.chunkSize - 1)}
-              step={10}
-              value={chunkingParams.chunkOverlap}
-              onChange={(e) => setChunkingParams({ chunkOverlap: Number(e.target.value) })}
-              className="w-full h-1 rounded-full appearance-none cursor-pointer accent-sandy bg-silver/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sandy [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-sandy [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-            />
-            <div className="flex items-center justify-between text-[11px] font-medium text-silver-dark tabular-nums">
-              <span>0 chars</span>
-              <span>
-                {chunkingParams.chunkOverlap} chars ({Math.round((chunkingParams.chunkOverlap / Math.max(1, chunkingParams.chunkSize)) * 100)}%)
-              </span>
-            </div>
+            {/* ... slider ... */}
           </div>
         </div>
 

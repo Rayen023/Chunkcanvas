@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   // External packages that should not be bundled server-side
   serverExternalPackages: ["pdfjs-dist", "pdf-lib", "chromadb"],
 

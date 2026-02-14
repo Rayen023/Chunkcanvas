@@ -98,12 +98,12 @@ function ChunkCard({ index, text, sourceFile, onUpdate, onDelete, forceCollapsed
         className="flex w-full items-center justify-between px-3 py-2 cursor-pointer hover:bg-silver-light/30 transition-colors"
       >
         <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
             <span className="text-sm font-medium text-gunmetal whitespace-nowrap">Chunk {index + 1}</span>
 
             {sourceFile && (
               <span
-                className="text-[10px] text-sandy-dark bg-sandy/10 px-2 py-0.5 rounded-full font-mono truncate max-w-[180px]"
+                className="text-[10px] text-sandy-dark bg-sandy/10 px-2 py-0.5 rounded-full font-mono truncate max-w-[120px] sm:max-w-[180px]"
                 title={sourceFile}
               >
                 {sourceFile}
@@ -124,7 +124,7 @@ function ChunkCard({ index, text, sourceFile, onUpdate, onDelete, forceCollapsed
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-              Saved
+              <span className="hidden sm:inline">Saved</span>
             </span>
           </div>
 

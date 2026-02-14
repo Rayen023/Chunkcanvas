@@ -399,17 +399,32 @@ export default function Home() {
   const hasNewUnparsed = unparsedFiles.length > 0 && parsedResults.length > 0;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8 space-y-8">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-8">
       {/* ── Mobile Header ──────────────────────────────── */}
-      <div className="lg:hidden flex items-center gap-2 mb-4">
-        <div className="h-8 w-8 rounded-lg bg-sandy flex items-center justify-center text-white font-bold text-sm">
-          CC
+      <div className="lg:hidden flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => useAppStore.getState().setSidebarCollapsed(false)}
+            className="flex items-center justify-center h-9 w-9 rounded-lg bg-card border border-silver-light shadow-sm hover:border-sandy transition-all cursor-pointer mr-1"
+            aria-label="Open sidebar"
+          >
+            <div className="h-6 w-6 rounded-md bg-sandy flex items-center justify-center text-white font-bold text-[9px]">
+              CC
+            </div>
+          </button>
+          <span className="text-lg font-semibold text-gunmetal">ChunkCanvas</span>
         </div>
-        <span className="text-lg font-semibold text-gunmetal">ChunkCanvas</span>
+        
+        {isParsing && (
+          <div className="flex items-center gap-2 text-xs font-medium text-sandy animate-pulse">
+            <span className="h-2 w-2 rounded-full bg-sandy" />
+            Parsing...
+          </div>
+        )}
       </div>
 
       {/* ═══════ STEP 1 — Upload Files ═══════ */}
-      <section id="step-1" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+      <section id="step-1" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-5">
         <h2 className="text-lg font-semibold text-gunmetal">
           <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
             1
@@ -421,7 +436,7 @@ export default function Home() {
 
       {/* ═══════ STEP 2 — Pipeline, Configure & Parse ═══════ */}
       {files.length > 0 && (
-        <section id="step-2" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+        <section id="step-2" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               2
@@ -506,7 +521,7 @@ export default function Home() {
 
       {/* ═══════ STEP 3 — Review Parsed Content ═══════ */}
       {parsedContent !== null && (
-        <section id="step-3" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-5">
+        <section id="step-3" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
               3
@@ -519,7 +534,7 @@ export default function Home() {
 
       {/* ═══════ STEP 4 — Chunking Configuration & Preview ═══════ */}
       {parsedContent !== null && (
-        <section id="step-4" className="bg-card rounded-xl shadow-sm border border-silver-light p-6 space-y-4">
+        <section id="step-4" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-lg font-semibold text-gunmetal">
               <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">

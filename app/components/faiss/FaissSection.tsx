@@ -345,7 +345,7 @@ export default function FaissSection() {
               type="text"
               value={indexesDir}
               onChange={(e) => setIndexesDir(e.target.value)}
-              placeholder="/tmp/chunkcanvas"
+              placeholder="/app/data"
               className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
             />
             <p className="mt-1 text-[11px] text-silver-dark">Use this folder when creating a new index and for automatic discovery of existing indexes.</p>
@@ -457,7 +457,7 @@ export default function FaissSection() {
                 type="text"
                 value={dbPath}
                 onChange={(e) => setDbPath(e.target.value)}
-                placeholder="/tmp/chunkcanvas/index.faiss"
+                placeholder="/app/data/index.faiss"
                 className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
               />
               <p className="text-[11px] text-silver-dark mt-1">Paste an existing path directly, or pick one discovered below.</p>

@@ -25,7 +25,7 @@ export function ProviderSelector({
 }: ProviderSelectorProps) {
   const singleOption = options.length === 1;
   return (
-    <div className={`flex ${singleOption ? "" : "flex-nowrap"} gap-2 ${className}`}>
+    <div className={`flex ${singleOption ? "" : "flex-wrap"} gap-2 ${className}`}>
       {options.map((option) => {
         const isSelected = selectedId === option.id;
         return (
@@ -33,14 +33,14 @@ export function ProviderSelector({
             key={option.id}
             type="button"
             onClick={() => onSelect(option.id)}
-            className={`${singleOption ? "" : "flex-1 min-w-0"} relative flex flex-col items-center justify-center gap-1 rounded-lg px-4 pt-2.5 pb-4 text-sm font-medium border-2 transition-all duration-200 cursor-pointer ${
+            className={`${singleOption ? "w-full" : "flex-1 min-w-[120px]"} relative flex flex-col items-center justify-center gap-1.5 rounded-lg px-3 pt-2.5 pb-4 text-sm font-medium border-2 transition-all duration-200 cursor-pointer ${
               isSelected
                 ? "bg-sandy text-white border-sandy shadow-md"
                 : "bg-card text-gunmetal border-silver-light shadow-sm hover:border-sandy hover:shadow-md dark:border-[#333] dark:hover:border-sandy"
             }`}
             title={option.description}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-w-full">
               {option.icon && (
                 <Image
                   src={option.icon}
@@ -50,7 +50,7 @@ export function ProviderSelector({
                   className="h-[18px] w-[18px] object-contain shrink-0"
                 />
               )}
-              <span className="truncate">{option.label}</span>
+              <span className="truncate text-xs sm:text-sm">{option.label}</span>
             </div>
             {option.badge && (
               <span

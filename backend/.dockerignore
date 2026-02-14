@@ -1,0 +1,9 @@
+# Backend specific ignores
+.venv
+__pycache__
+*.pyc
+.env
+.env*.local
+.git
+.github
+.vscode

@@ -1,0 +1,13 @@
+{
+  "dimension": 1024,
+  "metric": "cosine",
+  "records": {
+    "1627891235": {
+      "text": "--- Page 1 ---\nFiche d'inscription simplifiée\n\nDate de la session (jj/mm/aaaa) : __/__/____\nCentre de passation : _________________ Campus de Shippagan\n\nTEF\n☐ Compréhension écrite\n☐ Compréhension orale\n☐ Lexique/structure\n☐ Expression écrite\n☐ Expression orale\n\nTEFAQ\n☐ Compréhension écrite\n☐ Compréhension orale\n☐ Expression écrite\n☐ Expression orale\n\nTEF CANADA\n☐ Compréhension écrite\n☐ Compréhension orale\n☐ Expression écrite\n☐ Expression orale\n\nTEF Intégration, Résidence, Nationalité\nCompréhension écrite\nCompréhension orale\nExpression écrite\nExpression orale\n(épreuves indissociables)\n\nÉtat civil\n\n☐ Madame ☐ Monsieur ☐ Non-binaire\n\nNuméro de passeport ou de carte nationale d’identité * : _________________\n\nNom * : _________________\n\nPrénom * : _________________\n\nDate de naissance * : __/__/____ Pays de la nationalité * : _________________\n\nLangue maternelle : _________________\n\nAdresse : _________________\n\nCode postal : _________________ Ville : _________________ Téléphone * : _________________\n\nPays * : _________________\n\nÊtes-vous étudiant(e) ? ☐ Oui ☐ Non\n\nSi oui, sur quel campus êtes-vous inscrit(e) ? _________________ NIAO) : _________________\n\nEmail personnel * : _________________\n\nMotivation\n\n☐ Professionnelle ☐ Immigration au Canada ☐ Accès à la nationalité française ☐ Études en France\n☐ Individuelle ☐ Immigration au Québec ☐ Obtenir la carte de résident en France ☐ Académique\n☐ Accès à la citoyenneté canadienne ☐ Contrat d’intégration républicaine\n\nRèglement\n\nMontant de l’inscription : 400 $ \n\nVeuillez contacter Mme Lisette Chiasson pour le paiement au 506.336.3400 ext. 3639\n\n☐ Chèque ☐ Carte de crédit ☐ Espèces\n\n☐ Je certifie avoir pris connaissance des conditions d’inscription et de passation qui m’ont été transmises lors de mon inscription et qui sont disponibles également sur le site www.lefrancisedesaffaires.fr, et déclare les accepter.\n\n☐ Je certifie sur l’honneur l’exactitude des renseignements fournis.\n\nÀ (lieu) : _________________ Le (date) : __/__/____\n\nSignature (Nom prénom) : _________________",
+      "metadata": {
+        "filename": "FICHE D'INSCRIPTION TEF UMCS.pdf",
+        "chunk_index": 0
+      }
+    }
+  }
+}
