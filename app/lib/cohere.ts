@@ -6,6 +6,7 @@ export async function generateEmbeddings(
   apiKey: string,
   model: string,
   texts: string[],
+  signal?: AbortSignal,
 ): Promise<number[][]> {
   const res = await fetch("https://api.cohere.ai/v1/embed", {
     method: "POST",
@@ -20,6 +21,7 @@ export async function generateEmbeddings(
       input_type: "search_document",
       embedding_types: ["float"],
     }),
+    signal,
   });
 
   if (!res.ok) {

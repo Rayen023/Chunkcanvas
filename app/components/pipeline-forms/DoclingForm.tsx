@@ -64,16 +64,6 @@ export default function DoclingForm({ ext }: { ext: string }) {
     checkDocling();
   }, [checkVllm, checkDocling]);
 
-  const getPort = (url: string) => {
-    try {
-      const p = new URL(url).port;
-      if (p) return p;
-      return url.startsWith("https") ? "443" : url.includes("8020") ? "8020" : "8002";
-    } catch {
-      return "8002";
-    }
-  };
-
   const [showExample, setShowExample] = useState(false);
 
   return (
@@ -179,15 +169,18 @@ export default function DoclingForm({ ext }: { ext: string }) {
         {showExample && (
           <div className="mt-2 space-y-3">
             <div>
-              <p className="text-[10px] font-medium text-gunmetal mb-1 uppercase tracking-wider">Start vLLM (Inference)</p>
+              <p className="text-[10px] font-medium text-gunmetal mb-1 uppercase tracking-wider">Docker Compose (Docling server)</p>
               <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                vllm serve {GRANITE_DOCLING_MODEL} --port {VLLM_RECOMMENDED_MODELS.docling.port}
+                docker compose up docling -d
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-medium text-gunmetal mb-1 uppercase tracking-wider">Start Docling Server (Orchestration)</p>
+              <p className="text-[10px] font-medium text-gunmetal mb-1 uppercase tracking-wider">Standalone (requires vLLM running)</p>
               <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                cd backend && source .venv/bin/activate && uv run uvicorn app.docling_server:app --reload --port {getPort(doclingEndpoint)}
+                vllm serve {GRANITE_DOCLING_MODEL} --port {VLLM_RECOMMENDED_MODELS.docling.port}
+              </div>
+              <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                cd backend && uv run uvicorn app.docling_server:app --reload --port 8020
               </div>
             </div>
           </div>

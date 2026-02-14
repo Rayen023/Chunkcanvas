@@ -311,12 +311,18 @@ export async function generateOpenRouterEmbeddings(
   texts: string[],
   batchSize?: number,
   dimensions?: number,
+  signal?: AbortSignal,
+  onProgress?: (pct: number, msg?: string) => void,
 ): Promise<number[][]> {
   const { OPENROUTER_EMBEDDING_BATCH_SIZE } = await import("./constants");
   const size = batchSize ?? OPENROUTER_EMBEDDING_BATCH_SIZE;
   const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < texts.length; i += size) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    
+    onProgress?.((i / texts.length) * 100, `Embedding batch ${Math.floor(i / size) + 1}...`);
+    
     const batch = texts.slice(i, i + size);
 
     let lastError: Error | null = null;
@@ -324,6 +330,7 @@ export async function generateOpenRouterEmbeddings(
 
     for (let attempt = 0; attempt < OPENROUTER_MAX_RETRIES; attempt++) {
       try {
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const payload: Record<string, unknown> = { model, input: batch };
         if (dimensions && dimensions > 0) {
           payload.dimensions = dimensions;
@@ -336,6 +343,7 @@ export async function generateOpenRouterEmbeddings(
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify(payload),
+          signal,
         });
 
         if (res.status === 429 || res.status >= 500) {
@@ -374,6 +382,7 @@ export async function generateOpenRouterEmbeddings(
     }
   }
 
+  onProgress?.(100, "Embeddings complete");
   return allEmbeddings;
 }
 

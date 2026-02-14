@@ -34,16 +34,8 @@ export default function FaissStatus() {
     }
   }, [apiBase]);
 
-  const getPort = (url: string) => {
-    try {
-      const p = new URL(url).port;
-      return p || (url.startsWith("https") ? "443" : "8010");
-    } catch {
-      return "8010";
-    }
-  };
-
-  const launchCommand = `cd backend && source .venv/bin/activate && uv run uvicorn app.faiss_server:app --reload --port ${getPort(apiBase)}`;
+  const dockerCmd = `docker compose up faiss -d`;
+  const manualCmd = `cd backend && uv run uvicorn app.faiss_server:app --reload --port 8010`;
 
   return (
     <details className="group">
@@ -108,8 +100,15 @@ export default function FaissStatus() {
             {showExample ? "Hide launch command" : "Show launch command"}
           </button>
           {showExample && (
-            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-              {launchCommand}
+            <div className="mt-2 space-y-2">
+              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Docker Compose</p>
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                {dockerCmd}
+              </div>
+              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Standalone</p>
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                {manualCmd}
+              </div>
             </div>
           )}
         </div>

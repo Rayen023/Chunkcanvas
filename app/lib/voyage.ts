@@ -6,6 +6,7 @@ export async function generateEmbeddings(
   apiKey: string,
   model: string,
   texts: string[],
+  signal?: AbortSignal,
 ): Promise<number[][]> {
   const res = await fetch("https://api.voyageai.com/v1/embeddings", {
     method: "POST",
@@ -14,6 +15,7 @@ export async function generateEmbeddings(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ model, input: texts }),
+    signal,
   });
 
   if (!res.ok) {

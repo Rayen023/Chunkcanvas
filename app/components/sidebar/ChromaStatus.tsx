@@ -20,30 +20,39 @@ export default function ChromaStatus() {
 
     try {
       const base = localUrl.replace(/\/+$/, "");
-      const res = await fetch(`${base}/api/v1/heartbeat`, {
-        signal: AbortSignal.timeout(5000),
+      const fullUrl = `${base}/api/v2/heartbeat`;
+      
+      const res = await fetch("/api/chroma/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: fullUrl,
+          method: "GET"
+        }),
+        signal: AbortSignal.timeout(10000),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || `HTTP ${res.status}`);
+      }
+
       setStatus("ok");
       setMessage("Chroma server is reachable");
     } catch (err) {
       setStatus("error");
-      setMessage(err instanceof Error ? err.message : String(err));
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        setMessage("Failed to fetch. This usually means the server is down OR CORS is disabled. Ensure you run Chroma with CORS enabled (see instructions below).");
+      } else {
+        setMessage(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setChecking(false);
     }
   }, [localUrl]);
 
-  const getPort = (url: string) => {
-    try {
-      const p = new URL(url).port;
-      return p || (url.startsWith("https") ? "443" : "8002");
-    } catch {
-      return "8002";
-    }
-  };
-
-  const launchCommand = `cd backend && source .venv/bin/activate && uv run chroma run --host localhost --port ${getPort(localUrl)} --path ./my_chroma_data`;
+  const dockerCmd = `docker compose up chroma -d`;
+  const manualCmd = `chroma run --host localhost --port 8002 --path ./backend/my_chroma_data`;
 
   return (
     <details className="group">
@@ -89,13 +98,13 @@ export default function ChromaStatus() {
 
         {status === "ok" && (
           <StatusMessage type="success" label="Success:">
-            <span className="font-semibold">&#x2714; {message}</span>
+            <span className="font-semibold">{message}</span>
           </StatusMessage>
         )}
 
         {status === "error" && (
           <StatusMessage type="error" label="Error:">
-            {message || "Chroma is not reachable"}
+            {message}
           </StatusMessage>
         )}
 
@@ -108,8 +117,15 @@ export default function ChromaStatus() {
             {showExamples ? "Hide launch command" : "Show launch command"}
           </button>
           {showExamples && (
-            <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-              {launchCommand}
+            <div className="mt-2 space-y-2">
+              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Docker Compose</p>
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                {dockerCmd}
+              </div>
+              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Standalone</p>
+              <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                {manualCmd}
+              </div>
             </div>
           )}
         </div>

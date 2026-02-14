@@ -7,9 +7,9 @@ import VllmStatus from "./VllmStatus";
 import OllamaStatus from "./OllamaStatus";
 import ChromaStatus from "./ChromaStatus";
 import FaissStatus from "./FaissStatus";
-import MongodbStatus from "./MongodbStatus";
 import DoclingStatus from "./DoclingStatus";
 import ThemeToggle from "./ThemeToggle";
+import { useIsLocalMode } from "@/app/lib/local-mode";
 
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 480;
@@ -95,6 +95,7 @@ export default function Sidebar() {
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const setCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setWidth = useAppStore((s) => s.setSidebarWidth);
+  const isLocal = useIsLocalMode();
 
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -206,27 +207,43 @@ export default function Sidebar() {
 
           <div className="h-px bg-silver-light" />
 
-          <VllmStatus />
+          {isLocal ? (
+            <>
+              <VllmStatus />
 
-          <div className="h-px bg-silver-light" />
+              <div className="h-px bg-silver-light" />
 
-          <OllamaStatus />
+              <OllamaStatus />
 
-          <div className="h-px bg-silver-light" />
+              <div className="h-px bg-silver-light" />
 
-          <DoclingStatus />
+              <DoclingStatus />
 
-          <div className="h-px bg-silver-light" />
+              <div className="h-px bg-silver-light" />
 
-          <ChromaStatus />
+              <ChromaStatus />
 
-          <div className="h-px bg-silver-light" />
+              <div className="h-px bg-silver-light" />
 
-          <MongodbStatus />
-
-          <div className="h-px bg-silver-light" />
-
-          <FaissStatus />
+              <FaissStatus />
+            </>
+          ) : (
+            <div className="rounded-lg border border-silver-light bg-gunmetal/[0.02] dark:bg-white/[0.03] px-3 py-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-sandy">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+                </svg>
+                Cloud Mode
+              </div>
+              <p className="text-[10px] text-silver-dark leading-relaxed">
+                Local services (vLLM, Ollama, Docling, ChromaDB Local, FAISS) are not available in cloud mode. Use cloud providers or{" "}
+                <a href="https://github.com/Rayen023/chunkcanvas" target="_blank" rel="noopener noreferrer" className="text-sandy hover:underline">
+                  clone the repo
+                </a>{" "}
+                to run locally.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ── Footer ──────────────────────────────────── */}

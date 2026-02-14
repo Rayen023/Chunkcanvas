@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/app/lib/store";
 import { PINECONE_ENVIRONMENTS, PIPELINE } from "@/app/lib/constants";
 import ActionRow from "@/app/components/downloads/ActionRow";
@@ -11,6 +11,12 @@ import FaissSection from "@/app/components/faiss/FaissSection";
 import MongodbSection from "@/app/components/mongodb/MongodbSection";
 import type { ScriptConfig } from "@/app/lib/script-generator";
 import type { VectorDbProvider } from "@/app/lib/types";
+import { useIsLocalMode, LOCAL_VECTOR_DB_IDS } from "@/app/lib/local-mode";
+
+interface ChromaItem {
+  name: string;
+  id?: string;
+}
 
 const DB_OPTIONS: ProviderOption[] = [
   { id: "pinecone", label: "Pinecone", icon: "/tech-icons/Pinecone-Icon--Streamline-Svg-Logos.svg", badge: "Cloud", requiresApiKey: true },
@@ -90,6 +96,11 @@ export default function PineconeSection() {
   const setChromaSuccess = useAppStore((s) => s.setChromaSuccess);
   const selectedDb = useAppStore((s) => s.selectedVectorDb);
   const setSelectedDb = useAppStore((s) => s.setSelectedVectorDb);
+  const isLocal = useIsLocalMode();
+  const disabledVectorDbIds = useMemo(
+    () => (isLocal ? undefined : LOCAL_VECTOR_DB_IDS),
+    [isLocal],
+  );
 
   // Create index form state
   const [showCreate, setShowCreate] = useState(false);
@@ -115,6 +126,17 @@ export default function PineconeSection() {
   useEffect(() => {
     if (!pineconeApiKey && envPineconeKey) setPineconeApiKey(envPineconeKey);
   }, [pineconeApiKey, envPineconeKey, setPineconeApiKey]);
+
+  // Auto-switch away from local-only vector DBs and force chroma to cloud mode when remote
+  useEffect(() => {
+    if (isLocal) return;
+    if (LOCAL_VECTOR_DB_IDS.has(selectedDb)) {
+      setSelectedDb("pinecone");
+    }
+    if (selectedDb === "chroma" && chromaMode === "local") {
+      setChromaMode("cloud");
+    }
+  }, [isLocal, selectedDb, chromaMode, setSelectedDb, setChromaMode]);
 
   // Check if we have valid pre-generated embeddings
   const hasEmbeddings =
@@ -145,32 +167,53 @@ export default function PineconeSection() {
     fetchIndexes();
   }, [fetchIndexes]);
 
-  const buildChromaHeaders = useCallback(() => {
-    if (chromaMode !== "cloud") return undefined;
-    const headers: Record<string, string> = {};
-    if (chromaApiKey) headers["x-chroma-api-key"] = chromaApiKey;
-    if (chromaTenant) headers["x-chroma-tenant"] = chromaTenant;
-    return Object.keys(headers).length > 0 ? headers : undefined;
-  }, [chromaMode, chromaApiKey, chromaTenant]);
-
   const fetchChromaDatabases = useCallback(async () => {
     try {
       setIsListingChromaDatabases(true);
-      const query = new URLSearchParams({ mode: chromaMode });
-      if (chromaMode === "local" && chromaLocalUrl.trim()) {
-        query.set("localUrl", chromaLocalUrl.trim());
-      }
-      const response = await fetch(`/api/chroma/databases?${query.toString()}`, {
-        headers: buildChromaHeaders(),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || "Failed to list databases");
-      }
-      const databases: string[] = json.databases || [];
-      setChromaDatabases(databases);
-      if (databases.length > 0 && !chromaDatabase) {
-        setChromaDatabase(databases.includes("default_database") ? "default_database" : databases[0]);
+      setChromaError(null);
+
+      if (chromaMode === "cloud") {
+        if (!chromaApiKey || !chromaTenant) return;
+        
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: "https://api.trychroma.com/api/v2/tenants/" + encodeURIComponent(chromaTenant) + "/databases",
+            headers: { "x-chroma-token": chromaApiKey }
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to list cloud databases");
+        
+        const names = (json.data || []).map((db: ChromaItem) => db.name);
+        setChromaDatabases(names);
+        if (names.length > 0 && !chromaDatabase) {
+          setChromaDatabase(names.includes("default_database") ? "default_database" : names[0]);
+        }
+      } else {
+        try {
+          const base = chromaLocalUrl.trim() || "http://localhost:8000";
+          const res = await fetch("/api/chroma/proxy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases`,
+              method: "GET"
+            })
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success) throw new Error(json.message || "Failed to list local databases");
+          
+          const names = (json.data || []).map((db: ChromaItem) => db.name);
+          setChromaDatabases(names.length > 0 ? names : ["default_database"]);
+        } catch (err) {
+          if (err instanceof TypeError && err.message === "Failed to fetch") {
+             throw new Error("Failed to fetch. Ensure Local Chroma is running.");
+          }
+          setChromaDatabases(["default_database"]);
+        }
+        if (!chromaDatabase) setChromaDatabase("default_database");
       }
     } catch (err) {
       setChromaDatabases([]);
@@ -178,60 +221,61 @@ export default function PineconeSection() {
     } finally {
       setIsListingChromaDatabases(false);
     }
-  }, [
-    chromaMode,
-    chromaLocalUrl,
-    buildChromaHeaders,
-    chromaDatabase,
-    setChromaDatabase,
-    setChromaDatabases,
-    setChromaError,
-  ]);
+  }, [chromaMode, chromaApiKey, chromaTenant, chromaLocalUrl, chromaDatabase, setChromaDatabase, setChromaDatabases, setChromaError]);
 
   const fetchChromaCollections = useCallback(async () => {
     if (!chromaDatabase) return;
     try {
       setIsListingChromaCollections(true);
       setChromaError(null);
-      const query = new URLSearchParams({ mode: chromaMode, database: chromaDatabase });
-      if (chromaMode === "local" && chromaLocalUrl.trim()) {
-        query.set("localUrl", chromaLocalUrl.trim());
-      }
-      const headers: Record<string, string> = {};
+
       if (chromaMode === "cloud") {
-        if (chromaApiKey) headers["x-chroma-api-key"] = chromaApiKey;
-        if (chromaTenant) headers["x-chroma-tenant"] = chromaTenant;
-        headers["x-chroma-database"] = chromaDatabase;
-      }
-      const response = await fetch(`/api/chroma/collections?${query.toString()}`, {
-        headers: Object.keys(headers).length > 0 ? headers : undefined,
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || "Failed to list collections");
-      }
-      const collections: string[] = json.collections || [];
-      setChromaCollections(collections);
-      if (collections.length > 0 && !chromaCollectionName) {
-        setChromaCollectionName(collections[0]);
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections`,
+            headers: { "x-chroma-token": chromaApiKey }
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to list cloud collections");
+        
+        const names = (json.data || []).map((c: ChromaItem) => c.name);
+        setChromaCollections(names);
+        if (names.length > 0 && !chromaCollectionName) {
+          setChromaCollectionName(names[0]);
+        }
+      } else {
+        const base = chromaLocalUrl.trim() || "http://localhost:8000";
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections`,
+            method: "GET"
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to list local collections");
+        
+        const names = (json.data || []).map((c: ChromaItem) => c.name);
+        setChromaCollections(names);
+        if (names.length > 0 && !chromaCollectionName) {
+          setChromaCollectionName(names[0]);
+        }
       }
     } catch (err) {
       setChromaCollections([]);
-      setChromaError(err instanceof Error ? err.message : String(err));
+      if (err instanceof TypeError && err.message === "Failed to fetch" && chromaMode === "local") {
+        setChromaError("CORS Error: Local Chroma is blocking the request. See Sidebar for help enabling CORS.");
+      } else {
+        setChromaError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setIsListingChromaCollections(false);
     }
-  }, [
-    chromaMode,
-    chromaLocalUrl,
-    chromaApiKey,
-    chromaTenant,
-    chromaDatabase,
-    chromaCollectionName,
-    setChromaCollectionName,
-    setChromaCollections,
-    setChromaError,
-  ]);
+  }, [chromaMode, chromaTenant, chromaDatabase, chromaApiKey, chromaLocalUrl, chromaCollectionName, setChromaCollectionName, setChromaCollections, setChromaError]);
 
   useEffect(() => {
     if (selectedDb !== "chroma") return;
@@ -348,45 +392,46 @@ export default function PineconeSection() {
     setChromaError(null);
     setChromaSuccess(null);
     try {
-      const response = await fetch("/api/chroma/collections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: chromaMode,
-          localUrl: chromaMode === "local" ? chromaLocalUrl : undefined,
-          cloudApiKey: chromaMode === "cloud" ? chromaApiKey : undefined,
-          cloudTenant: chromaMode === "cloud" ? chromaTenant : undefined,
-          cloudDatabase: chromaDatabase,
-          name: newChromaCollection.trim(),
-          getOrCreate: true,
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || "Failed to create collection");
+      const name = newChromaCollection.trim();
+      
+      if (chromaMode === "cloud") {
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections`,
+            method: "POST",
+            headers: { "x-chroma-token": chromaApiKey },
+            body: { name, metadata: { "created_by": "chunkcanvas" }, get_or_create: true }
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to create cloud collection");
+      } else {
+        const base = chromaLocalUrl.trim() || "http://localhost:8000";
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections`,
+            method: "POST",
+            body: { name, metadata: { "created_by": "chunkcanvas" }, get_or_create: true }
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to create local collection");
       }
 
-      setChromaCollectionName(newChromaCollection.trim());
+      setChromaCollectionName(name);
       setNewChromaCollection("");
-      setChromaSuccess(`Collection "${json.collection.name}" is ready.`);
+      setChromaSuccess(`Collection "${name}" is ready.`);
       await fetchChromaCollections();
     } catch (err) {
       setChromaError(err instanceof Error ? err.message : String(err));
     } finally {
       setCreatingChromaCollection(false);
     }
-  }, [
-    newChromaCollection,
-    chromaMode,
-    chromaLocalUrl,
-    chromaApiKey,
-    chromaTenant,
-    chromaDatabase,
-    setChromaCollectionName,
-    setChromaError,
-    setChromaSuccess,
-    fetchChromaCollections,
-  ]);
+  }, [newChromaCollection, chromaMode, chromaTenant, chromaDatabase, chromaApiKey, chromaLocalUrl, setChromaCollectionName, setChromaError, setChromaSuccess, fetchChromaCollections]);
 
   const handleUploadToChroma = useCallback(async () => {
     if (!chromaCollectionName || editedChunks.length === 0) return;
@@ -404,33 +449,72 @@ export default function PineconeSection() {
         chunk_index: index,
       }));
 
-      const response = await fetch("/api/chroma/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: chromaMode,
-          localUrl: chromaMode === "local" ? chromaLocalUrl : undefined,
-          cloudApiKey: chromaMode === "cloud" ? chromaApiKey : undefined,
-          cloudTenant: chromaMode === "cloud" ? chromaTenant : undefined,
-          cloudDatabase: chromaDatabase,
-          collectionName: chromaCollectionName,
-          createIfMissing: true,
-          ids,
-          documents: editedChunks,
-          metadatas,
-          embeddings: embeddingsData,
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.message || "Failed to upload chunks to Chroma");
+      if (chromaMode === "cloud") {
+        // We need the collection ID for the cloud upsert URL
+        const listRes = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections`,
+            headers: { "x-chroma-token": chromaApiKey }
+          })
+        });
+        const listJson = await listRes.json();
+        const collectionId = (listJson.data || []).find((c: ChromaItem) => c.name === chromaCollectionName)?.id;
+        if (!collectionId) throw new Error("Could not find collection ID");
+
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections/${collectionId}/upsert`,
+            method: "POST",
+            headers: { "x-chroma-token": chromaApiKey },
+            body: { ids, documents: editedChunks, metadatas, embeddings: embeddingsData }
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to upload to cloud");
+      } else {
+        const base = chromaLocalUrl.trim() || "http://localhost:8000";
+        const cleanBase = base.replace(/\/+$/, "");
+        
+        // 1. Get collection ID
+        const listRes = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `${cleanBase}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections`,
+            method: "GET"
+          })
+        });
+        const listJson = await listRes.json();
+        const collectionId = (listJson.data || []).find((c: ChromaItem) => c.name === chromaCollectionName)?.id;
+        if (!collectionId) throw new Error("Could not find local collection ID");
+
+        // 2. Upsert
+        const res = await fetch("/api/chroma/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: `${cleanBase}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections/${collectionId}/upsert`,
+            method: "POST",
+            body: { ids, documents: editedChunks, metadatas, embeddings: embeddingsData }
+          })
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.message || "Failed to upload to local Chroma");
       }
 
       setChromaSuccess(
         `Chunks successfully uploaded to Chroma collection "${chromaCollectionName}" (${chromaMode}).`,
       );
     } catch (err) {
-      setChromaError(err instanceof Error ? err.message : String(err));
+      if (err instanceof TypeError && err.message === "Failed to fetch" && chromaMode === "local") {
+        setChromaError("CORS Error: Local Chroma is blocking the request. See Sidebar for help enabling CORS.");
+      } else {
+        setChromaError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setIsUploadingChroma(false);
     }
@@ -440,10 +524,10 @@ export default function PineconeSection() {
     chunkSourceFiles,
     parsedFilename,
     chromaMode,
-    chromaLocalUrl,
-    chromaApiKey,
     chromaTenant,
     chromaDatabase,
+    chromaApiKey,
+    chromaLocalUrl,
     hasEmbeddings,
     embeddingsData,
     setIsUploadingChroma,
@@ -514,6 +598,8 @@ export default function PineconeSection() {
           options={DB_OPTIONS}
           selectedId={selectedDb}
           onSelect={(id) => setSelectedDb(id as VectorDbProvider)}
+          disabledIds={disabledVectorDbIds}
+          disabledTooltip="Requires local setup — clone the repo and run locally to use FAISS"
         />
       </div>
 
@@ -963,15 +1049,21 @@ export default function PineconeSection() {
               { key: "cloud", label: "Chroma Cloud" },
             ] as const).map((mode) => {
               const selected = chromaMode === mode.key;
+              const isLocalDisabled = mode.key === "local" && !isLocal;
               return (
                 <button
                   key={mode.key}
                   type="button"
-                  onClick={() => setChromaMode(mode.key)}
-                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${selected
-                    ? "border-sandy bg-sandy/10 text-gunmetal"
-                    : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50"
+                  onClick={() => { if (!isLocalDisabled) setChromaMode(mode.key); }}
+                  disabled={isLocalDisabled}
+                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isLocalDisabled
+                      ? "opacity-40 cursor-not-allowed bg-card border-silver-light text-silver-dark grayscale"
+                      : selected
+                        ? "border-sandy bg-sandy/10 text-gunmetal cursor-pointer"
+                        : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50 cursor-pointer"
                   }`}
+                  title={isLocalDisabled ? "Requires local setup — clone the repo to use local Chroma" : undefined}
                 >
                   {mode.label}
                 </button>
@@ -1010,15 +1102,15 @@ export default function PineconeSection() {
                   {showExamples ? "Hide launch command" : "Show launch command"}
                 </button>
                 {showExamples && (
-                  <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                    {(() => {
-                      try {
-                        const p = new URL(chromaLocalUrl).port || "8002";
-                        return `cd backend && source .venv/bin/activate && uv run chroma run --host localhost --port ${p} --path ./my_chroma_data`;
-                      } catch {
-                        return `cd backend && source .venv/bin/activate && uv run chroma run --host localhost --port 8002 --path ./my_chroma_data`;
-                      }
-                    })()}
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Docker Compose</p>
+                    <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                      docker compose up chroma -d
+                    </div>
+                    <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Standalone</p>
+                    <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                      chroma run --host localhost --port 8002 --path ./backend/my_chroma_data
+                    </div>
                   </div>
                 )}
               </div>
@@ -1055,6 +1147,8 @@ export default function PineconeSection() {
             </div>
           )}
 
+          {((chromaMode === "local" && chromaLocalUrl) || (chromaMode === "cloud" && chromaApiKey)) ? (
+          <>
           {/* Database Selection & Creation */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -1103,23 +1197,24 @@ export default function PineconeSection() {
                     setChromaError(null);
                     setChromaSuccess(null);
                     try {
-                      const response = await fetch("/api/chroma/databases", {
+                      const base = chromaLocalUrl.trim() || "http://localhost:8000";
+                      const res = await fetch("/api/chroma/proxy", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                          mode: chromaMode,
-                          localUrl: chromaLocalUrl || undefined,
-                          name: newChromaDatabase.trim(),
-                        }),
+                          url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases`,
+                          method: "POST",
+                          body: { name: newChromaDatabase.trim() }
+                        })
                       });
-                      const json = await response.json();
-                      if (!response.ok || !json.success) {
+                      const json = await res.json();
+                      if (!res.ok || !json.success) {
                         throw new Error(json.message || "Failed to create database");
                       }
                       setChromaDatabase(newChromaDatabase.trim());
                       setNewChromaDatabase("");
                       setShowCreateChromaDatabase(false);
-                      setChromaSuccess(`Database "${json.database.name}" created.`);
+                      setChromaSuccess(`Database "${newChromaDatabase.trim()}" created.`);
                       await fetchChromaDatabases();
                     } catch (err) {
                       setChromaError(err instanceof Error ? err.message : String(err));
@@ -1326,7 +1421,13 @@ export default function PineconeSection() {
           <p className="text-[11px] text-silver-dark">
             Upload uses upsert and will reuse existing chunk IDs when they already exist.
           </p>
-          </div>
+          </>
+          ) : (
+            <p className="text-xs text-silver-dark">
+              {chromaMode === "local" ? "Enter a Local Chroma URL" : "Enter a Chroma API Key"} to see available databases and collections.
+            </p>
+          )}
+        </div>
       )}
 
       {selectedDb === "mongodb" && (

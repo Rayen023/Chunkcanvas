@@ -329,10 +329,16 @@ export async function generateVllmEmbeddings(
   endpoint: string = "http://localhost:8001",
   batchSize: number = 32,
   dimensions?: number,
+  signal?: AbortSignal,
+  onProgress?: (pct: number, msg?: string) => void,
 ): Promise<number[][]> {
   const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < texts.length; i += batchSize) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+    onProgress?.((i / texts.length) * 100, `Embedding batch ${Math.floor(i / batchSize) + 1}...`);
+
     const batch = texts.slice(i, i + batchSize);
 
     const res = await fetch(`${endpoint}/v1/embeddings`, {
@@ -343,6 +349,7 @@ export async function generateVllmEmbeddings(
         input: batch,
         ...(dimensions && dimensions > 0 ? { dimensions } : {}),
       }),
+      signal,
     });
 
     if (!res.ok) {
@@ -360,6 +367,7 @@ export async function generateVllmEmbeddings(
     allEmbeddings.push(...embeddings);
   }
 
+  onProgress?.(100, "Embeddings complete");
   return allEmbeddings;
 }
 

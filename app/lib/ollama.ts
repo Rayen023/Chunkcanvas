@@ -533,10 +533,16 @@ export async function generateOllamaEmbeddings(
   endpoint: string = DEFAULT_OLLAMA_ENDPOINT,
   batchSize: number = 64,
   dimensions?: number,
+  signal?: AbortSignal,
+  onProgress?: (pct: number, msg?: string) => void,
 ): Promise<number[][]> {
   const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < texts.length; i += batchSize) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    
+    onProgress?.((i / texts.length) * 100, `Embedding batch ${Math.floor(i / batchSize) + 1}...`);
+
     const batch = texts.slice(i, i + batchSize);
     const isLastBatch = i + batchSize >= texts.length;
 
@@ -553,6 +559,7 @@ export async function generateOllamaEmbeddings(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal,
     });
 
     if (!res.ok) {
@@ -569,5 +576,6 @@ export async function generateOllamaEmbeddings(
     allEmbeddings.push(...embeddings);
   }
 
+  onProgress?.(100, "Embeddings complete");
   return allEmbeddings;
 }

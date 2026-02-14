@@ -220,7 +220,7 @@ export const DEFAULT_VLLM_EMBEDDING_ENDPOINT = "http://localhost:8007";
  */
 export const VLLM_RECOMMENDED_MODELS = {
   docling: {
-    model: "ibm-granite/granite-docling-258M",
+    model: "ibm-granite/granite-docling-258M", 
     port: 8005,
     description: "Docling",
   },

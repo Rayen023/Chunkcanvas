@@ -15,6 +15,7 @@ import {
   ProviderOption,
 } from "@/app/components/shared/ConfigSection";
 import StatusMessage from "@/app/components/shared/StatusMessage";
+import { useIsLocalMode, LOCAL_PIPELINE_IDS } from "@/app/lib/local-mode";
 
 const ALL_PIPELINES = Object.values(PIPELINE);
 
@@ -133,6 +134,23 @@ export default function PipelineSelector() {
   const pipelinesByExt = useAppStore((s) => s.pipelinesByExt);
   const setPipelineForExt = useAppStore((s) => s.setPipelineForExt);
   const lastPipelineByExt = useAppStore((s) => s.lastPipelineByExt);
+  const isLocal = useIsLocalMode();
+
+  /** Pipeline IDs disabled in cloud mode (remote access) */
+  const disabledPipelineIds = useMemo(
+    () => (isLocal ? undefined : LOCAL_PIPELINE_IDS),
+    [isLocal],
+  );
+
+  // Auto-deselect local pipelines when in cloud mode
+  useEffect(() => {
+    if (isLocal) return;
+    for (const [ext, selected] of Object.entries(pipelinesByExt)) {
+      if (selected && LOCAL_PIPELINE_IDS.has(selected)) {
+        setPipelineForExt(ext, "");
+      }
+    }
+  }, [isLocal, pipelinesByExt, setPipelineForExt]);
 
   /** Group files by extension */
   const extGroups = useMemo(() => {
@@ -212,6 +230,20 @@ export default function PipelineSelector() {
 
   return (
     <div className="space-y-4">
+      {/* ── Cloud-mode banner ──────────────────────────── */}
+      {!isLocal && (
+        <div className="rounded-lg border border-sandy/30 bg-sandy/5 px-4 py-3 text-xs text-gunmetal dark:text-white/80 space-y-1">
+          <div className="flex items-center gap-2 font-semibold text-sandy">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" />
+            </svg>
+            Cloud Mode
+          </div>
+          <p>Local providers (Ollama, vLLM, Docling) require self-hosting.
+            <a href="https://github.com/chunkcanvas" target="_blank" rel="noopener noreferrer" className="text-sandy hover:underline ml-1">Clone the repo</a> to run locally with all providers.</p>
+        </div>
+      )}
+
       {/* ── Clear all files button ──────────────────────── */}
       {files.length > 1 && (
         <div className="flex justify-end">
@@ -336,6 +368,8 @@ export default function PipelineSelector() {
                   options={pipelineOptions}
                   selectedId={selected}
                   onSelect={(id) => setPipelineForExt(ext, id)}
+                  disabledIds={disabledPipelineIds}
+                  disabledTooltip="Requires local setup — clone the repo and run locally to use this provider"
                 />
 
                 {pipelines.length === 0 && (

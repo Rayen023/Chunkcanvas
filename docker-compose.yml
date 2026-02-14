@@ -10,42 +10,58 @@ services:
       - .env.local
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:3000
-      # Adjust backend URLs if they are called server-side vs client-side
-      # If client-side, they need to be accessible from the browser (localhost)
-      # If server-side, they can use container names (backend-faiss:8010)
+      - NEXT_PUBLIC_OLLAMA_URL=http://localhost:11434
+      - NEXT_PUBLIC_VLLM_URL=http://localhost:8000
+      - NEXT_PUBLIC_DOCLING_URL=http://localhost:8020
+      - NEXT_PUBLIC_CHROMA_URL=http://localhost:8002
+      - NEXT_PUBLIC_FAISS_URL=http://localhost:8010
+
     restart: unless-stopped
     depends_on:
-      - backend-faiss
-      - backend-docling
+      - faiss
+      - docling
+      - chroma
 
-  backend-faiss:
+  faiss:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: chunkcanvas-backend-faiss
+    container_name: chunkcanvas-faiss
     command: uvicorn app.faiss_server:app --host 0.0.0.0 --port 8010
     ports:
       - "8010:8010"
     volumes:
-      - ./backend/data:/app/data # Persistence for FAISS indexes
+      - ./backend/data:/app/data
     env_file:
       - .env.local
     restart: unless-stopped
 
-  backend-docling:
+  docling:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: chunkcanvas-backend-docling
+    container_name: chunkcanvas-docling
     command: uvicorn app.docling_server:app --host 0.0.0.0 --port 8020
     ports:
       - "8020:8020"
     env_file:
       - .env.local
     environment:
-      # Assuming vLLM runs on the host machine. 
-      # host.docker.internal works on Docker Desktop (Mac/Win) and can be enabled on Linux.
-      - VLLM_URL=http://host.docker.internal:8002/v1/chat/completions
+      - VLLM_URL=http://host.docker.internal:8000/v1/chat/completions
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chunkcanvas-chroma
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./backend/my_chroma_data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
+      - ANONYMIZED_TELEMETRY=FALSE
+      - CHROMA_SERVER_CORS_ALLOWED_ORIGINS=*
     restart: unless-stopped

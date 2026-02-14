@@ -40,7 +40,7 @@ logger = logging.getLogger("docling-server")
 # ── Constants ───────────────────────────────────────────────────────────
 
 GRANITE_MODEL = "ibm-granite/granite-docling-258M"
-DEFAULT_VLLM_URL = "http://localhost:8002/v1/chat/completions"
+DEFAULT_VLLM_URL = "http://localhost:8000/v1/chat/completions"
 
 # ── FastAPI app ─────────────────────────────────────────────────────────
 

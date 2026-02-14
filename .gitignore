@@ -40,14 +40,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-NEXTJS_SPEC.md
 .gemini
-.github
 .vscode
+.github/copilot-instructions.md
 
 # python backend
 backend/.venv/
 backend/**/__pycache__/
 backend/**/*.pyc
 backend/my_chroma_data
+backend/data
 run_vllm.sh

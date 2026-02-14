@@ -114,16 +114,8 @@ export default function FaissSection() {
 
   const canCreate = !!indexesDir.trim() && !!newDbName.trim() && dimension > 0;
 
-  const getPort = (url: string) => {
-    try {
-      const p = new URL(url).port;
-      return p || (url.startsWith("https") ? "443" : "8010");
-    } catch {
-      return "8010";
-    }
-  };
-
-  const launchCommand = `cd backend && source .venv/bin/activate && uv run uvicorn app.faiss_server:app --reload --port ${getPort(faissApiBase)}`;
+  const dockerCmd = `docker compose up faiss -d`;
+  const manualCmd = `cd backend && uv run uvicorn app.faiss_server:app --reload --port 8010`;
 
   const handleListIndexes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -323,8 +315,15 @@ export default function FaissSection() {
                 {showLaunchCommand ? "Hide launch command" : "Show launch command"}
               </button>
               {showLaunchCommand && (
-                <div className="mt-1 p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                  {launchCommand}
+                <div className="mt-2 space-y-2">
+                  <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Docker Compose</p>
+                  <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                    {dockerCmd}
+                  </div>
+                  <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Standalone</p>
+                  <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                    {manualCmd}
+                  </div>
                 </div>
               )}
             </div>
@@ -352,6 +351,8 @@ export default function FaissSection() {
           </div>
         </div>
 
+        {(faissApiBase.trim() && indexesDir.trim()) ? (
+        <>
         {/* Select Index */}
         <div>
           <label className="block text-sm font-medium text-gunmetal mb-2">
@@ -563,6 +564,13 @@ export default function FaissSection() {
             )}
           </button>
         </div>
+        </>
+        ) : (
+          <p className="text-xs text-silver-dark">
+            Enter the FastAPI URL and Indexes Directory to see available indexes.
+          </p>
+        )}
+
 
         {!hasEmbeddings && (
           <StatusMessage type="warning" label="Note:">

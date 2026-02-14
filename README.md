@@ -22,8 +22,8 @@ The easiest way to run the full stack (Frontend + FAISS Backend + Docling Backen
     NEXT_PUBLIC_API_URL=http://localhost:3000
 
     # Backend URLs (Internal Docker communication)
-    BACKEND_FAISS_URL=http://backend-faiss:8010
-    BACKEND_DOCLING_URL=http://backend-docling:8020
+    BACKEND_FAISS_URL=http://faiss:8010
+    BACKEND_DOCLING_URL=http://docling:8020
 
     # NEXT_PUBLIC_OPENROUTER_API_KEY=sk-or-...
     # NEXT_PUBLIC_VOYAGEAI_API_KEY=pa-...

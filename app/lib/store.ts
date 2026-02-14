@@ -105,6 +105,8 @@ export interface AppState {
   /** Metadata for the currently active `embeddingsData` (what actually generated it). */
   embeddingsMeta: { provider: EmbeddingProvider; modelKey: string; dimensions: number; endpoint?: string } | null;
   isEmbedding: boolean;
+  embeddingProgress: number;
+  embeddingProgressMsg: string;
   embeddingError: string | null;
 
   // ── Step 7 — Pinecone ─────────────────────────
@@ -254,6 +256,7 @@ export interface AppActions {
   setEmbeddingChunkCache: (cache: Record<string, number[]>) => void;
   setEmbeddingsMeta: (meta: AppState["embeddingsMeta"]) => void;
   setIsEmbedding: (v: boolean) => void;
+  setEmbeddingProgress: (pct: number, msg?: string) => void;
   setEmbeddingError: (err: string | null) => void;
 
   // Step 7
@@ -419,6 +422,8 @@ export const useAppStore = create<AppState & AppActions>()(
   embeddingChunkCache: {},
   embeddingsMeta: null,
   isEmbedding: false,
+  embeddingProgress: 0,
+  embeddingProgressMsg: "",
   embeddingError: null,
   pineconeApiKey: "",
   pineconeEnvKey: "aws-us-east-1",
@@ -518,6 +523,8 @@ export const useAppStore = create<AppState & AppActions>()(
         embeddingsData: null,
         embeddingsForChunksHash: null,
         embeddingError: null,
+        embeddingProgress: 0,
+        embeddingProgressMsg: "",
         // Keep embeddingChunkCache? Clear on explicit clear-all to avoid surprising reuse across sessions.
         embeddingChunkCache: {},
         pineconeSuccess: null,
@@ -913,6 +920,7 @@ export const useAppStore = create<AppState & AppActions>()(
   setEmbeddingChunkCache: (cache) => set({ embeddingChunkCache: cache }),
   setEmbeddingsMeta: (meta) => set({ embeddingsMeta: meta }),
   setIsEmbedding: (v) => set({ isEmbedding: v }),
+  setEmbeddingProgress: (pct, msg) => set({ embeddingProgress: pct, embeddingProgressMsg: msg ?? "" }),
   setEmbeddingError: (err) => set({ embeddingError: err }),
 
   setPineconeApiKey: (key) => set({ pineconeApiKey: key }),
@@ -1049,6 +1057,8 @@ export const useAppStore = create<AppState & AppActions>()(
       embeddingChunkCache: {},
       embeddingsMeta: null,
       isEmbedding: false,
+      embeddingProgress: 0,
+      embeddingProgressMsg: "",
       embeddingError: null,
       pineconeApiKey: s.envKeys.pinecone || s.pineconeApiKey || "",
       pineconeEnvKey: s.pineconeEnvKey || "aws-us-east-1",
@@ -1130,6 +1140,8 @@ export const useAppStore = create<AppState & AppActions>()(
       // Keep embeddings caches/history; only mark active embeddings as out-of-date.
       resets.embeddingsForChunksHash = null;
       resets.embeddingError = null;
+      resets.embeddingProgress = 0;
+      resets.embeddingProgressMsg = "";
     }
     if (fromStep <= 5) {
       resets.pineconeSuccess = null;

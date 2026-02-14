@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useAppStore } from "@/app/lib/store";
 import { VOYAGE_MODELS, COHERE_MODELS, EMBEDDING_MODELS, OPENROUTER_DEFAULT_EMBEDDING_MODEL, DEFAULT_OLLAMA_ENDPOINT, DEFAULT_EMBEDDING_DIMENSIONS, VLLM_RECOMMENDED_MODELS } from "@/app/lib/constants";
 import ActionRow from "@/app/components/downloads/ActionRow";
+import ProgressBar from "@/app/components/parsing/ProgressBar";
 import { ProviderSelector, ConfigContainer, ConfigHeader, ProviderOption } from "@/app/components/shared/ConfigSection";
 import StatusMessage from "@/app/components/shared/StatusMessage";
 import type { EmbeddingsJson } from "@/app/lib/types";
 import type { ScriptConfig } from "@/app/lib/script-generator";
 import { PIPELINE } from "@/app/lib/constants";
+import { useIsLocalMode, LOCAL_EMBEDDING_PROVIDER_IDS } from "@/app/lib/local-mode";
 
 const PROVIDER_OPTIONS: ProviderOption[] = [
   { id: "openrouter", label: "OpenRouter", icon: "/tech-icons/openrouter.svg", badge: "Cloud", requiresApiKey: true },
@@ -71,6 +73,11 @@ export default function EmbeddingsSection() {
   const editedChunks = useAppStore((s) => s.editedChunks);
   const parsedFilename = useAppStore((s) => s.parsedFilename);
   const pipeline = useAppStore((s) => s.pipeline);
+  const isLocal = useIsLocalMode();
+  const disabledEmbeddingIds = useMemo(
+    () => (isLocal ? undefined : LOCAL_EMBEDDING_PROVIDER_IDS),
+    [isLocal],
+  );
 
   // Embedding provider
   const embeddingProvider = useAppStore((s) => s.embeddingProvider);
@@ -134,14 +141,49 @@ export default function EmbeddingsSection() {
   const setEmbeddingChunkCache = useAppStore((s) => s.setEmbeddingChunkCache);
   const setEmbeddingsMeta = useAppStore((s) => s.setEmbeddingsMeta);
   const isEmbedding = useAppStore((s) => s.isEmbedding);
+  const embeddingProgress = useAppStore((s) => s.embeddingProgress);
+  const embeddingProgressMsg = useAppStore((s) => s.embeddingProgressMsg);
   const embeddingError = useAppStore((s) => s.embeddingError);
   const setEmbeddingsData = useAppStore((s) => s.setEmbeddingsData);
   const setIsEmbedding = useAppStore((s) => s.setIsEmbedding);
+  const setEmbeddingProgress = useAppStore((s) => s.setEmbeddingProgress);
   const setEmbeddingError = useAppStore((s) => s.setEmbeddingError);
 
   const [downloadingJson, setDownloadingJson] = useState(false);
   const [generatingScript, setGeneratingScript] = useState(false);
   const [showVllmExample, setShowVllmExample] = useState(false);
+  const [embeddingTimer, setEmbeddingTimer] = useState(0);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isEmbedding) {
+      interval = setInterval(() => {
+        setEmbeddingTimer((t) => t + 1);
+      }, 1000);
+    } else {
+      setEmbeddingTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [isEmbedding]);
+
+  const abortRef = useRef<AbortController | null>(null);
+
+  // ── Cancel Generation ──────────────────────────────────────
+  const handleCancel = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+      setIsEmbedding(false);
+      setEmbeddingProgress(0, "");
+      setEmbeddingError("Embedding generation cancelled by user");
+    }
+  }, [setIsEmbedding, setEmbeddingProgress, setEmbeddingError]);
 
   // Script Dependencies
   const chunkingParams = useAppStore((s) => s.chunkingParams);
@@ -172,6 +214,13 @@ export default function EmbeddingsSection() {
   useEffect(() => {
     if (!cohereApiKey && envCohereKey) setCohereApiKey(envCohereKey);
   }, [cohereApiKey, envCohereKey, setCohereApiKey]);
+
+  // Auto-switch away from local embedding providers when in cloud mode
+  useEffect(() => {
+    if (!isLocal && LOCAL_EMBEDDING_PROVIDER_IDS.has(embeddingProvider)) {
+      setEmbeddingProvider("openrouter");
+    }
+  }, [isLocal, embeddingProvider, setEmbeddingProvider]);
 
   useEffect(() => {
     if (!openrouterApiKey && envOpenrouterKey) setOpenrouterApiKey(envOpenrouterKey);
@@ -347,8 +396,15 @@ export default function EmbeddingsSection() {
   // Generate embeddings
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
+    
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsEmbedding(true);
     setEmbeddingError(null);
+    setEmbeddingProgress(0, "Initializing...");
+    setEmbeddingTimer(0);
 
     const endpointForCache =
       embeddingProvider === "ollama"
@@ -392,6 +448,8 @@ export default function EmbeddingsSection() {
       setEmbeddingsMeta(meta);
       setEmbeddingsData(assembled as number[][]);
       setIsEmbedding(false);
+      setEmbeddingProgress(100, "All chunks retrieved from cache");
+      abortRef.current = null;
       return;
     }
 
@@ -401,18 +459,22 @@ export default function EmbeddingsSection() {
     try {
       let newEmbeddings: number[][] = [];
       if (embeddingProvider === "voyage") {
+        setEmbeddingProgress(0, `Sending ${missingTexts.length} chunks to Voyage AI...`);
         const { generateEmbeddings } = await import("@/app/lib/voyage");
         newEmbeddings = await generateEmbeddings(
           voyageApiKey,
           voyageModel,
           missingTexts,
+          controller.signal,
         );
       } else if (embeddingProvider === "cohere") {
+        setEmbeddingProgress(0, `Sending ${missingTexts.length} chunks to Cohere...`);
         const { generateEmbeddings } = await import("@/app/lib/cohere");
         newEmbeddings = await generateEmbeddings(
           cohereApiKey,
           cohereModel,
           missingTexts,
+          controller.signal,
         );
       } else if (embeddingProvider === "ollama") {
         const { generateOllamaEmbeddings } = await import("@/app/lib/ollama");
@@ -423,6 +485,8 @@ export default function EmbeddingsSection() {
           ollamaEmbeddingEndpoint,
           undefined, // batchSize — use default
           dims,
+          controller.signal,
+          (pct, msg) => setEmbeddingProgress(pct, msg),
         );
       } else if (embeddingProvider === "vllm") {
         const { generateVllmEmbeddings } = await import("@/app/lib/vllm");
@@ -433,6 +497,8 @@ export default function EmbeddingsSection() {
           vllmEmbeddingEndpoint,
           undefined, // batchSize
           dims,
+          controller.signal,
+          (pct, msg) => setEmbeddingProgress(pct, msg),
         );
       } else {
         const { generateOpenRouterEmbeddings } = await import("@/app/lib/openrouter");
@@ -443,6 +509,8 @@ export default function EmbeddingsSection() {
           missingTexts,
           undefined, // batchSize — use default
           dims,
+          controller.signal,
+          (pct, msg) => setEmbeddingProgress(pct, msg),
         );
       }
 
@@ -451,6 +519,8 @@ export default function EmbeddingsSection() {
           `Embedding provider returned ${newEmbeddings.length} embeddings for ${missingTexts.length} chunks`,
         );
       }
+
+      setEmbeddingProgress(100, "Finalizing...");
 
       // Fill missing slots + update cache
       for (let j = 0; j < missingIndices.length; j++) {
@@ -472,9 +542,13 @@ export default function EmbeddingsSection() {
       setEmbeddingsMeta(meta);
       setEmbeddingsData(assembled as number[][]);
     } catch (err) {
+      if ((err as Error).name === "AbortError") return;
       setEmbeddingError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsEmbedding(false);
+      if (!controller.signal.aborted) {
+        setIsEmbedding(false);
+        abortRef.current = null;
+      }
     }
   }, [
     canGenerate, embeddingProvider,
@@ -487,7 +561,7 @@ export default function EmbeddingsSection() {
     editedChunks,
     embeddingChunkCache, setEmbeddingChunkCache,
     embeddingModelKey, embeddingDimsForCache,
-    setIsEmbedding, setEmbeddingError, setEmbeddingsData, setEmbeddingsMeta,
+    setIsEmbedding, setEmbeddingError, setEmbeddingsData, setEmbeddingsMeta, setEmbeddingProgress,
   ]);
 
   // Download embeddings JSON
@@ -582,6 +656,8 @@ export default function EmbeddingsSection() {
           options={PROVIDER_OPTIONS}
           selectedId={embeddingProvider}
           onSelect={(id) => setEmbeddingProvider(id as "openrouter" | "voyage" | "cohere" | "ollama" | "vllm")}
+          disabledIds={disabledEmbeddingIds}
+          disabledTooltip="Requires local setup — clone the repo and run locally to use this provider"
         />
       </div>
 
@@ -925,24 +1001,43 @@ export default function EmbeddingsSection() {
         </div>
       </ConfigContainer>
 
+      {isEmbedding && (
+        <ProgressBar
+          progress={embeddingProgress}
+          message={embeddingProgressMsg}
+          timer={formatTime(embeddingTimer)}
+        />
+      )}
+
       {/* Generate Button */}
-      <button
-        onClick={handleGenerate}
-        disabled={!canGenerate || isEmbedding}
-        className="w-full flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-      >
-        {isEmbedding ? (
-          <>
+      {isEmbedding ? (
+        <div className="flex gap-2">
+          <button
+            disabled
+            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white opacity-75 cursor-not-allowed"
+          >
             <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Generating embeddings with {activeModelLabel}…
-          </>
-        ) : (
-          <>Generate Embeddings</>
-        )}
-      </button>
+            Generating with {activeModelLabel}…
+          </button>
+          <button
+            onClick={handleCancel}
+            className="px-6 py-3 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 active:bg-red-700 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleGenerate}
+          disabled={!canGenerate}
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+        >
+          Generate Embeddings
+        </button>
+      )}
 
       {/* Error */}
       {embeddingError && (

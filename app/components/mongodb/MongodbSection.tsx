@@ -242,6 +242,8 @@ export default function MongodbSection() {
           </p>
         </div>
 
+        {mongodbUri ? (
+        <>
         {/* Database Selection */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -534,6 +536,12 @@ export default function MongodbSection() {
             </div>
           )}
         </div>
+        </>
+        ) : (
+          <p className="text-xs text-silver-dark">
+            Enter a MongoDB Atlas URI to see available databases and collections.
+          </p>
+        )}
       </div>
 
       {!hasEmbeddings && (
