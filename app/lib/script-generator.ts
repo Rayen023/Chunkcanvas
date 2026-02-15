@@ -144,7 +144,7 @@ def _call_openrouter(api_key: str, model: str, messages: list, plugins: list | N
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/chunkcanvas",
+        "HTTP-Referer": "https://github.com/Rayen023/chunkcanvas",
         "X-Title": "ChunkCanvas",
     }
     body = {"model": model, "messages": messages}
@@ -424,7 +424,7 @@ function genMainEmbeddings(
         resp = httpx.post(
             "https://openrouter.ai/api/v1/embeddings",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-                     "HTTP-Referer": "https://github.com/chunkcanvas", "X-Title": "ChunkCanvas"},
+                     "HTTP-Referer": "https://github.com/Rayen023/chunkcanvas", "X-Title": "ChunkCanvas"},
             json={"model": model, "input": batch${dimsJson}},
             timeout=120,
         )
@@ -523,7 +523,7 @@ function genMainPinecone(
         resp = httpx.post(
             "https://openrouter.ai/api/v1/embeddings",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-                     "HTTP-Referer": "https://github.com/chunkcanvas", "X-Title": "ChunkCanvas"},
+                     "HTTP-Referer": "https://github.com/Rayen023/chunkcanvas", "X-Title": "ChunkCanvas"},
             json={"model": emb_model, "input": batch${dimsJson}},
             timeout=120,
         )
@@ -668,7 +668,7 @@ function genMainMongodb(
         resp = httpx.post(
             "https://openrouter.ai/api/v1/embeddings",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-                     "HTTP-Referer": "https://github.com/chunkcanvas", "X-Title": "ChunkCanvas"},
+                     "HTTP-Referer": "https://github.com/Rayen023/chunkcanvas", "X-Title": "ChunkCanvas"},
             json={"model": emb_model, "input": batch${dimsJson}},
             timeout=120,
         )

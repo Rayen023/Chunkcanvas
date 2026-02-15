@@ -91,7 +91,7 @@ export const OPENROUTER_TIMEOUT_MS = 120_000;
 
 export const OPENROUTER_HEADERS_BASE = {
   "Content-Type": "application/json",
-  "HTTP-Referer": "https://github.com/chunkcanvas",
+  "HTTP-Referer": "https://github.com/Rayen023/chunkcanvas",
   "X-Title": "ChunkCanvas",
 };
 
