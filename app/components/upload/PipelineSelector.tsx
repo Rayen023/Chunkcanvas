@@ -19,7 +19,6 @@ import { useIsLocalMode, LOCAL_PIPELINE_IDS } from "@/app/lib/local-mode";
 
 const ALL_PIPELINES = Object.values(PIPELINE);
 
-/** Whether a pipeline requires an API key */
 const PIPELINE_NEEDS_KEY: Record<string, boolean> = {
   [PIPELINE.SIMPLE_TEXT]: false,
   [PIPELINE.EXCEL_SPREADSHEET]: false,
@@ -136,7 +135,6 @@ export default function PipelineSelector() {
   const lastPipelineByExt = useAppStore((s) => s.lastPipelineByExt);
   const isLocal = useIsLocalMode();
 
-  /** Pipeline IDs disabled in cloud mode (remote access) */
   const disabledPipelineIds = useMemo(
     () => (isLocal ? undefined : LOCAL_PIPELINE_IDS),
     [isLocal],
@@ -152,7 +150,6 @@ export default function PipelineSelector() {
     }
   }, [isLocal, pipelinesByExt, setPipelineForExt]);
 
-  /** Group files by extension */
   const extGroups = useMemo(() => {
     const groups: Record<string, File[]> = {};
     for (const f of files) {
@@ -163,7 +160,6 @@ export default function PipelineSelector() {
     return groups;
   }, [files]);
 
-  /** For each extension, compute the list of compatible pipelines */
   const extPipelines = useMemo(() => {
     const result: Record<string, string[]> = {};
     for (const ext of Object.keys(extGroups)) {
@@ -189,7 +185,6 @@ export default function PipelineSelector() {
       return next;
     });
 
-  /** Pipelines that have a real configuration form */
   const HAS_CONFIG: Set<string> = new Set([
     PIPELINE.OPENROUTER_PDF, PIPELINE.OPENROUTER_IMAGE, PIPELINE.OPENROUTER_AUDIO, PIPELINE.OPENROUTER_VIDEO,
     PIPELINE.OLLAMA_PDF, PIPELINE.OLLAMA_IMAGE,
@@ -225,7 +220,6 @@ export default function PipelineSelector() {
     }
   }, [extPipelines, pipelinesByExt, setPipelineForExt]);
 
-  /** Find the global index of a File object inside the store's files array */
   const getGlobalIndex = (file: File) => files.indexOf(file);
 
   return (

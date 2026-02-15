@@ -8,17 +8,9 @@ import {
   type OpenRouterModelFull,
 } from "./types";
 
-/**
- * All model/config data loaded from generated JSON.
- * Run `npm run update-models` to refresh from APIs.
- * Source: app/lib/generated/models-data.json
- */
 import generatedData from "./generated/models-data.json";
 
-// Re-export PIPELINE for convenience
 export { PIPELINE };
-
-// ─── Extension Sets Per Pipeline ──────────────────────────────────────────
 
 export const PIPELINE_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
   [PIPELINE.SIMPLE_TEXT]: new Set(["pdf", "docx", "txt", "md"]),
@@ -26,39 +18,70 @@ export const PIPELINE_ALLOWED_EXTENSIONS: Record<string, Set<string>> = {
   [PIPELINE.CSV_SPREADSHEET]: new Set(["csv"]),
   [PIPELINE.OPENROUTER_PDF]: new Set(["pdf"]),
   [PIPELINE.OPENROUTER_IMAGE]: new Set([
-    "png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "tif",
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "tiff",
+    "tif",
   ]),
   [PIPELINE.OPENROUTER_AUDIO]: new Set([
-    "wav", "mp3", "aiff", "aac", "ogg", "flac", "m4a",
+    "wav",
+    "mp3",
+    "aiff",
+    "aac",
+    "ogg",
+    "flac",
+    "m4a",
   ]),
   [PIPELINE.OPENROUTER_VIDEO]: new Set([
-    "mp4", "mpeg", "mov", "webm", "mkv", "avi",
+    "mp4",
+    "mpeg",
+    "mov",
+    "webm",
+    "mkv",
+    "avi",
   ]),
   [PIPELINE.OLLAMA_PDF]: new Set(["pdf"]),
   [PIPELINE.OLLAMA_IMAGE]: new Set([
-    "png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "tif",
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "tiff",
+    "tif",
   ]),
   [PIPELINE.VLLM_PDF]: new Set(["pdf"]),
   [PIPELINE.VLLM_IMAGE]: new Set([
-    "png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "tif",
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "tiff",
+    "tif",
   ]),
   [PIPELINE.VLLM_AUDIO]: new Set([
-    "wav", "mp3", "aiff", "aac", "ogg", "flac", "m4a",
+    "wav",
+    "mp3",
+    "aiff",
+    "aac",
+    "ogg",
+    "flac",
+    "m4a",
   ]),
-  [PIPELINE.VLLM_VIDEO]: new Set([
-    "mp4", "mpeg", "mov", "webm", "mkv", "avi",
-  ]),
+  [PIPELINE.VLLM_VIDEO]: new Set(["mp4", "mpeg", "mov", "webm", "mkv", "avi"]),
   [PIPELINE.DOCLING_PDF]: new Set(["pdf"]),
 };
 
-/** Every extension the app accepts */
 export const ALL_ACCEPTED_EXTENSIONS = Array.from(
-  new Set(
-    Object.values(PIPELINE_ALLOWED_EXTENSIONS).flatMap((s) => [...s])
-  )
+  new Set(Object.values(PIPELINE_ALLOWED_EXTENSIONS).flatMap((s) => [...s])),
 ).map((e) => `.${e}`);
-
-// ─── OpenRouter ───────────────────────────────────────────────────────────
 
 export const OPENROUTER_API_URL = "https://openrouter.ai/api/v1";
 export const OPENROUTER_DEFAULT_MODEL = "google/gemini-3-flash-preview";
@@ -72,14 +95,11 @@ export const OPENROUTER_HEADERS_BASE = {
   "X-Title": "ChunkCanvas",
 };
 
-/** PDF processing engines — loaded from generated JSON. */
-export const PDF_ENGINES: PdfEngineOption[] = generatedData.pdfEngines as PdfEngineOption[];
+export const PDF_ENGINES: PdfEngineOption[] =
+  generatedData.pdfEngines as PdfEngineOption[];
 
-/** Fallback parsing models (multimodal) — loaded from generated JSON. */
 export const FALLBACK_MODELS: Record<string, OpenRouterModel> =
   generatedData.openrouterParsingModels as Record<string, OpenRouterModel>;
-
-// ─── Default Prompts ──────────────────────────────────────────────────────
 
 export const DEFAULT_PROMPTS: Record<string, string> = {
   file: `Extract and return ALL text content from this PDF page exactly as it appears.
@@ -107,8 +127,6 @@ content, any spoken dialogue or narration, on-screen text, and key events
 or actions. Preserve the language of any speech.`,
 };
 
-// ─── MIME Mappings ────────────────────────────────────────────────────────
-
 export const IMAGE_MIME: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -122,119 +140,97 @@ export const IMAGE_MIME: Record<string, string> = {
 
 export const VIDEO_MIME: Record<string, string> = {
   mp4: "video/mp4",
+
   mpeg: "video/mpeg",
+
   mov: "video/mov",
+
   webm: "video/webm",
+
   mkv: "video/x-matroska",
+
   avi: "video/x-msvideo",
 };
 
-// ─── OpenRouter Embeddings ──────────────────────────────────────────────
-
 export const OPENROUTER_DEFAULT_EMBEDDING_MODEL = "qwen/qwen3-embedding-8b";
+
 export const OPENROUTER_EMBEDDING_BATCH_SIZE = 128;
+
 export const DEFAULT_EMBEDDING_DIMENSIONS = 1024;
 
-/** OpenRouter embedding models — loaded from generated JSON. */
 export const EMBEDDING_MODELS: OpenRouterModelFull[] =
   generatedData.openrouterEmbeddingModels as OpenRouterModelFull[];
 
-// ─── Voyage AI ────────────────────────────────────────────────────────────
+export const VOYAGE_MODELS: VoyageModel[] =
+  generatedData.voyageModels as VoyageModel[];
 
-/** Voyage AI embedding models — loaded from generated JSON. */
-export const VOYAGE_MODELS: VoyageModel[] = generatedData.voyageModels as VoyageModel[];
-
-// ─── Cohere ───────────────────────────────────────────────────────────────
-
-/** Cohere embedding models — loaded from generated JSON. */
 export const COHERE_MODELS: CohereModel[] = (
   generatedData as unknown as { cohereModels: CohereModel[] }
 ).cohereModels;
 
-// ─── Pinecone ─────────────────────────────────────────────────────────────
-
-/** Pinecone cloud environments — loaded from generated JSON. */
 export const PINECONE_ENVIRONMENTS: PineconeEnvironment[] =
   generatedData.pineconeEnvironments as PineconeEnvironment[];
 
-// ─── Default Chunking Params ──────────────────────────────────────────────
-
 export const DEFAULT_CHUNK_SIZE = 4096;
+
 export const DEFAULT_CHUNK_OVERLAP = 50;
 
 export const CHUNKING_TYPE_LABELS: Record<string, string> = {
-  "recursive": "Recursive Character Text Splitting",
+  recursive: "Recursive Character Text Splitting",
 };
 
-/**
- * Default separators — ordered from coarsest to finest.
- * By default, only paragraph breaks and headings are enabled.
- */
-export const DEFAULT_SEPARATORS = [
-  "\n\n",   // paragraph break
-  "\n# ",   // H1 heading
-  "\n## ",  // H2 heading
-  "\n### ", // H3 heading
-];
+export const DEFAULT_SEPARATORS = ["\n\n", "\n# ", "\n## ", "\n### "];
 
-/**
- * All possible separators that can be toggled in the UI.
- */
 export const ALL_AVAILABLE_SEPARATORS = [
-  "\n\n",   // paragraph break
-  "\n# ",   // H1 heading
-  "\n## ",  // H2 heading
-  "\n### ", // H3 heading
-  "\n---",  // horizontal rule / thematic break
-  "\n",     // line break (fallback)
-  ". ",     // sentence end
-  "? ",     // question end
-  "! ",     // exclamation end
-  " ",      // word boundary
+  "\n\n",
+  "\n# ",
+  "\n## ",
+  "\n### ",
+  "\n---",
+  "\n",
+  ". ",
+  "? ",
+  "! ",
+  " ",
 ];
 
-/** Human-readable labels for each default separator */
 export const DEFAULT_SEPARATOR_LABELS: Record<string, string> = {
-  "\n\n":   "Paragraph break (\\n\\n)",
-  "\n# ":   "Heading 1 (\\n# )",
-  "\n## ":  "Heading 2 (\\n## )",
+  "\n\n": "Paragraph break (\\n\\n)",
+  "\n# ": "Heading 1 (\\n# )",
+  "\n## ": "Heading 2 (\\n## )",
   "\n### ": "Heading 3 (\\n### )",
-  "\n---":  "Horizontal rule (\\n---)",
-  "\n":     "Line break (\\n)",
-  ". ":     "Sentence end (. )",
-  "? ":     "Question end (? )",
-  "! ":     "Exclamation end (! )",
-  " ":      "Word boundary (space)",
+  "\n---": "Horizontal rule (\\n---)",
+  "\n": "Line break (\\n)",
+  ". ": "Sentence end (. )",
+  "? ": "Question end (? )",
+  "! ": "Exclamation end (! )",
+  " ": "Word boundary (space)",
 };
 
 export const DEFAULT_SEPARATORS_DISPLAY = "\\n\\n, \\n# , \\n## , \\n### ";
-
-// ─── vLLM ─────────────────────────────────────────────────────────────────
-
 export const DEFAULT_VLLM_ENDPOINT = "http://localhost:8000";
 export const DEFAULT_VLLM_EMBEDDING_ENDPOINT = "http://localhost:8007";
 
-/**
- * Recommended vLLM models for different modalities.
- * Each uses a unique port to avoid conflicts when running simultaneously.
- */
 export const VLLM_RECOMMENDED_MODELS = {
   docling: {
-    model: "ibm-granite/granite-docling-258M", 
+    model: "ibm-granite/granite-docling-258M",
     port: 8005,
     description: "Docling",
   },
+
   audio: {
     model: "openai/whisper-large-v3-turbo",
     port: 8006,
     description: "Audio transcription",
   },
+
   embeddings: {
     model: "jinaai/jina-embeddings-v3",
     port: 8007,
     extraFlags: "--trust-remote-code",
     description: "Text embeddings",
   },
+
   multimodal: {
     model: "Qwen/Qwen3-VL-8B-Instruct-FP8",
     port: 8008,
@@ -243,30 +239,12 @@ export const VLLM_RECOMMENDED_MODELS = {
   },
 } as const;
 
-// ─── Ollama ───────────────────────────────────────────────────────────────
-
 export const DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434";
-
-// ─── Chroma ───────────────────────────────────────────────────────────────
-
 export const DEFAULT_CHROMA_ENDPOINT = "http://localhost:8002";
-
-// ─── FAISS ────────────────────────────────────────────────────────────────
-
 export const DEFAULT_FAISS_ENDPOINT = "http://localhost:8010";
-
-// ─── Docling ───────────────────────────────────────────────────────────────────────
-
 export const DEFAULT_DOCLING_ENDPOINT = "http://localhost:8020";
-
-/** The granite-docling model ID — when selected under vLLM, parsing routes through the Docling server. */
 export const GRANITE_DOCLING_MODEL = "ibm-granite/granite-docling-258M";
 
-/**
- * Ollama optimization settings based on official docs:
- * https://docs.ollama.com/faq
- * https://github.com/ollama/ollama/blob/main/docs/api.md
- */
 export const OLLAMA_CONFIG = {
   VISION_NUM_CTX: 16000,
   MAX_TOKENS_VISION: -1,

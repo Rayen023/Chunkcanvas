@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import { ALL_ACCEPTED_EXTENSIONS } from "@/app/lib/constants";
 import { useAppStore } from "@/app/lib/store";
 
-/** Recursively traverse a FileSystemEntry tree. */
 async function traverseEntry(entry: FileSystemEntry): Promise<File[]> {
   if (entry.isFile) {
     return new Promise<File[]>((resolve) => {
@@ -32,12 +31,10 @@ export default function FileUploader() {
   const [dragActive, setDragActive] = useState(false);
   const [dupeWarning, setDupeWarning] = useState<string[] | null>(null);
 
-  /** Core handler that takes a File array, deduplicates by name */
   const handleFileArray = useCallback(
     (incoming: File[]) => {
       if (incoming.length === 0) return;
 
-      // Detect duplicates within the incoming batch
       const seen = new Map<string, number>();
       const batchDupes: string[] = [];
       for (const f of incoming) {
@@ -47,7 +44,6 @@ export default function FileUploader() {
         if (count > 1) batchDupes.push(name);
       }
 
-      // Detect duplicates against already-loaded files
       const existingNames = new Set(files.map((f) => f.name));
       const crossDupes = incoming
         .filter((f) => existingNames.has(f.name))
@@ -55,7 +51,6 @@ export default function FileUploader() {
 
       const allDupes = [...new Set([...batchDupes, ...crossDupes])];
 
-      // Keep only the first occurrence of each name
       const uniqueNames = new Set<string>();
       const deduped = incoming.filter((f) => {
         if (uniqueNames.has(f.name) || existingNames.has(f.name)) return false;
@@ -75,23 +70,20 @@ export default function FileUploader() {
         addFiles(deduped);
       }
 
-      // Scroll to Step 2 so the sidebar highlights "Configure & Parse"
       requestAnimationFrame(() => {
         document.getElementById("step-2")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
-      // Reset file input values so re-uploading the same file works
       if (inputRef.current) inputRef.current.value = "";
       if (dirInputRef.current) dirInputRef.current.value = "";
     },
     [files, setFiles, addFiles],
   );
 
-  /** Accept all files — they’ll be grouped by extension in PipelineSelector */
   const handleFiles = useCallback(
     (incoming: FileList | null) => {
       if (!incoming || incoming.length === 0) return;
-      handleFileArray(Array.from(incoming));      // Reset inputs so the same file can be re-selected after clearing
+      handleFileArray(Array.from(incoming));
       if (inputRef.current) inputRef.current.value = "";
       if (dirInputRef.current) dirInputRef.current.value = "";    },
     [handleFileArray],
@@ -103,7 +95,6 @@ export default function FileUploader() {
       e.stopPropagation();
       setDragActive(false);
 
-      // Check if any dropped items are directories
       const items = Array.from(e.dataTransfer.items);
       const hasDir = items.some((i) => i.webkitGetAsEntry?.()?.isDirectory);
 
@@ -142,7 +133,6 @@ export default function FileUploader() {
 
   return (
     <div className="space-y-3">
-      {/* Duplicate filename warning */}
       {dupeWarning && dupeWarning.length > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <svg className="h-5 w-5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -166,7 +156,6 @@ export default function FileUploader() {
         </div>
       )}
 
-      {/* Hidden directory input (outside drop zone to avoid click bubbling) */}
       <input
         ref={dirInputRef}
         type="file"
@@ -177,7 +166,6 @@ export default function FileUploader() {
         className="hidden"
       />
 
-      {/* Drop zone */}
       <div
         onDrop={onDrop}
         onDragOver={onDragOver}
@@ -238,7 +226,6 @@ export default function FileUploader() {
         </div>
       </div>
 
-      {/* Upload Folder button */}
       {files.length === 0 && (
         <button
           type="button"

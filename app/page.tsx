@@ -9,7 +9,6 @@ import FileUploader from "./components/upload/FileUploader";
 import PipelineSelector from "./components/upload/PipelineSelector";
 import ProgressBar from "./components/parsing/ProgressBar";
 
-// Dynamic imports for heavy components — loaded only when needed
 const ParsedDocumentView = dynamic(
   () => import("./components/parsing/ParsedDocumentView"),
 );
@@ -55,7 +54,6 @@ export default function Home() {
 
   const buildParseCacheKey = useCallback((file: File, filePipeline: string, cfg: ReturnType<typeof defaultExtConfig>) => {
     const fileFingerprint = `${file.name}|${file.size}|${file.lastModified}`;
-    // Keep only config fields that affect parsing output.
     const relevantCfg: Record<string, unknown> = {
       openrouterModel: cfg.openrouterModel,
       openrouterPrompt: cfg.openrouterPrompt,
@@ -72,11 +70,9 @@ export default function Home() {
       excelColumn: cfg.excelColumn,
       excelSelectedColumns: cfg.excelSelectedColumns,
     };
-    // Stable stringify (keys are fixed, so JSON.stringify is stable enough here)
     return `v1|${fileFingerprint}|p:${filePipeline}|cfg:${JSON.stringify(relevantCfg)}`;
   }, []);
 
-  // ── Cancel Processing ───────────────────────────────────────
   const handleCancel = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -88,7 +84,6 @@ export default function Home() {
     }
   }, []);
 
-  // ── Process Document(s) — sequential multi-file ──────────
   const handleProcess = useCallback(async () => {
     const state = useAppStore.getState();
     if (state.files.length === 0) return;
@@ -102,14 +97,10 @@ export default function Home() {
     state.setParseError(null);
     state.setParseProgress(0, "Initializing...");
 
-    // We keep prior parsed results and embeddings unless the user explicitly Reset/Clear-all.
-    // This run will update/append parse results for the current file list as needed.
-
     const anyLocalPdf = Object.values(state.pipelinesByExt).some(
       (p) => p === PIPELINE.OLLAMA_PDF || p === PIPELINE.VLLM_PDF,
     );
     if (anyLocalPdf) {
-      // Ensure UI can show live streaming progress for local PDF parsing.
       if (state.parsedContent === null) state.setParsedContent("");
     }
 
@@ -250,7 +241,6 @@ export default function Home() {
     state.setCurrentProcessingFile("");
   }, [buildParseCacheKey]);
 
-  // ── Chunk Document(s) — each file chunked independently ──
   const handleChunk = useCallback(async () => {
     const state = useAppStore.getState();
     const results = state.parsedResults;
@@ -302,7 +292,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [isParsing]);
 
-  // ── Scroll-based step detection ────────────────────────────
   const setScrollActiveStep = useAppStore((s) => s.setScrollActiveStep);
   const embeddingsData = useAppStore((s) => s.embeddingsData);
 
@@ -311,7 +300,6 @@ export default function Home() {
 
     const updateActiveStep = () => {
       const vh = window.innerHeight;
-      // Focus zone: top 15% to 55% of the viewport (upper-middle area)
       const zoneTop = vh * 0.1;
       const zoneBottom = vh * 0.4;
       let bestStep: number | null = null;
@@ -346,7 +334,6 @@ export default function Home() {
     };
   }, [parsedContent, editedChunks.length, embeddingsData, setScrollActiveStep]);
 
-  // ── Live Chunking ──────────────────────────────────────────
   useEffect(() => {
     if ((parsedContent || parsedResults.length > 0) && !isParsing) {
       setIsChunkPreviewPending(true);
@@ -386,7 +373,6 @@ export default function Home() {
   const canProcess =
     files.length > 0 && allExtsCovered && !isParsing && (needsOpenRouter ? !!openrouterApiKey : true);
 
-  // ── Determine unparsed vs cached files ──────────────────
   const parsedFileNames = useMemo(
     () => new Set(parsedResults.map((r) => r.filename)),
     [parsedResults],
@@ -400,7 +386,6 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-8">
-      {/* ── Mobile Header ──────────────────────────────── */}
       <div className="lg:hidden flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <button
@@ -423,7 +408,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* ═══════ STEP 1 — Upload Files ═══════ */}
       <section id="step-1" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-5">
         <h2 className="text-lg font-semibold text-gunmetal">
           <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-sandy text-white text-xs font-bold mr-2">
@@ -434,7 +418,6 @@ export default function Home() {
         <FileUploader />
       </section>
 
-      {/* ═══════ STEP 2 — Pipeline, Configure & Parse ═══════ */}
       {files.length > 0 && (
         <section id="step-2" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
@@ -445,7 +428,6 @@ export default function Home() {
           </h2>
           <PipelineSelector />
 
-          {/* Banner: new files added after a previous parse */}
           {hasNewUnparsed && !isParsing && (
             <div className="flex items-start gap-2.5 rounded-lg border border-sandy/40 bg-sandy/5 px-3.5 py-2.5 text-sm">
               <svg className="h-5 w-5 flex-shrink-0 mt-0.5 text-sandy" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -519,7 +501,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ STEP 3 — Review Parsed Content ═══════ */}
       {parsedContent !== null && (
         <section id="step-3" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-5">
           <h2 className="text-lg font-semibold text-gunmetal">
@@ -532,7 +513,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ STEP 4 — Chunking Configuration & Preview ═══════ */}
       {parsedContent !== null && (
         <section id="step-4" className="bg-card rounded-xl shadow-sm border border-silver-light p-4 sm:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4">
@@ -563,12 +543,10 @@ export default function Home() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[360px,1fr] lg:items-start">
-            {/* Left: Params */}
             <div className="rounded-xl bg-card">
               <ChunkingParams />
             </div>
 
-            {/* Right: Live preview + actions */}
             <div className="rounded-xl border border-silver-light bg-card p-4">
               {editedChunks.length > 0 ? (
                 <div className="flex flex-col gap-3">
@@ -589,21 +567,18 @@ export default function Home() {
         </section>
       )}
 
-      {/* ═══════ STEP 5 — Embeddings ═══════ */}
       {editedChunks.length > 0 && (
         <section id="step-5">
           <EmbeddingsSection />
         </section>
       )}
 
-      {/* ═══════ STEP 6 — Vector Databases ═══════ */}
       {editedChunks.length > 0 && (
         <section id="step-6">
           <PineconeSection />
         </section>
       )}
 
-      {/* Bottom spacing */}
       <div className="h-16" />
     </div>
   );

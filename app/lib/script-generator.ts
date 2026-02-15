@@ -1,43 +1,30 @@
-/**
- * Script generator — produces pipeline.py + pyproject.toml + .env.example
- * as text strings that can be zipped client-side.
- *
- * Four stages: "parsing" | "chunks" | "embeddings" | "pinecone"
- */
-
 import { PIPELINE } from "./constants";
 import type { ChunkingParams, EmbeddingProvider, PdfEngine } from "./types";
 
-// ─── Types ────────────────────────────────────────────────────────────────
-
-export type ScriptStage = "parsing" | "chunks" | "embeddings" | "pinecone" | "mongodb";
+export type ScriptStage =
+  | "parsing"
+  | "chunks"
+  | "embeddings"
+  | "pinecone"
+  | "mongodb";
 
 export interface ScriptConfig {
   pipeline: string;
   chunkingParams: ChunkingParams;
   filename?: string;
-  // OpenRouter extras
   openrouterModel?: string;
   openrouterPrompt?: string;
   pdfEngine?: PdfEngine;
-  // Excel extras
   excelColumn?: string;
   excelSheet?: string;
-  // Embedding provider
   embeddingProvider?: EmbeddingProvider;
-  // Voyage model (for embeddings/pinecone)
   voyageModel?: string;
-  // Cohere model
   cohereModel?: string;
-  // OpenRouter embedding model
   openrouterEmbeddingModel?: string;
-  // Embedding dimensions (shared across providers)
   embeddingDimensions?: number;
-  // Pinecone (for pinecone stage)
   pineconeIndexName?: string;
   pineconeCloud?: string;
   pineconeRegion?: string;
-  // MongoDB (for mongodb stage)
   mongodbDatabase?: string;
   mongodbCollection?: string;
   mongodbIndexName?: string;
@@ -45,12 +32,12 @@ export interface ScriptConfig {
   mongodbTextField?: string;
 }
 
-// ─── Dependency Sets ──────────────────────────────────────────────────────
-
-function getDeps(pipeline: string, stage: ScriptStage, embeddingProvider?: EmbeddingProvider): string[] {
-  const base = [
-    '"python-dotenv>=1.0"',
-  ];
+function getDeps(
+  pipeline: string,
+  stage: ScriptStage,
+  embeddingProvider?: EmbeddingProvider,
+): string[] {
+  const base = ['"python-dotenv>=1.0"'];
 
   if (stage !== "parsing") {
     base.push('"langchain-text-splitters>=0.2"');
@@ -82,12 +69,15 @@ function getDeps(pipeline: string, stage: ScriptStage, embeddingProvider?: Embed
     } else if (embeddingProvider === "cohere") {
       base.push('"langchain-cohere>=0.1.0"');
     } else {
-      // Default to Voyage or other providers
       base.push('"langchain-voyageai>=0.0.3"');
     }
   }
   if (stage === "pinecone") {
-    base.push('"langchain-pinecone>=0.1.4"', '"pinecone>=5.0"', '"langchain-core>=0.2"');
+    base.push(
+      '"langchain-pinecone>=0.1.4"',
+      '"pinecone>=5.0"',
+      '"langchain-core>=0.2"',
+    );
   }
   if (stage === "mongodb") {
     base.push('"pymongo[srv]>=4.6"', '"langchain-mongodb>=0.1"');
@@ -95,8 +85,6 @@ function getDeps(pipeline: string, stage: ScriptStage, embeddingProvider?: Embed
 
   return base;
 }
-
-// ─── Read Function Generators ─────────────────────────────────────────────
 
 function genReadSimpleText(): string {
   return `
@@ -185,7 +173,11 @@ def _call_openrouter(api_key: str, model: str, messages: list, plugins: list | N
 `;
 }
 
-function genReadOpenRouterPdf(model: string, prompt: string, engine: PdfEngine): string {
+function genReadOpenRouterPdf(
+  model: string,
+  prompt: string,
+  engine: PdfEngine,
+): string {
   const pluginLine =
     engine !== "native"
       ? `    plugins = [{"id": "file-parser", "pdf": {"engine": ${JSON.stringify(engine)}}}]`
@@ -277,8 +269,6 @@ def read_document(file_path: str) -> str:
 `;
 }
 
-// ─── Chunking Code ────────────────────────────────────────────────────────
-
 function genChunkFunction(params: ChunkingParams, isExcel: boolean): string {
   const seps = JSON.stringify(params.separators);
   if (isExcel) {
@@ -313,8 +303,6 @@ def chunk_text(text: str, filename: str) -> list[str]:
     return [d.page_content for d in docs]
 `;
 }
-
-// ─── Main Function Generators ─────────────────────────────────────────────
 
 function genMainParsing(isExcel: boolean, defaultFilename?: string): string {
   const sourceFile = defaultFilename ? JSON.stringify(defaultFilename) : '""';
@@ -403,7 +391,7 @@ function genMainEmbeddings(
   openrouterEmbeddingModel: string,
   isExcel: boolean,
   embeddingDimensions?: number,
-  defaultFilename?: string
+  defaultFilename?: string,
 ): string {
   const sourceFile = defaultFilename ? JSON.stringify(defaultFilename) : '""';
   const chunkCall = isExcel
@@ -415,12 +403,14 @@ function genMainEmbeddings(
   else if (embeddingProvider === "cohere") modelName = cohereModel;
   else modelName = voyageModel;
 
-  const dimsPayload = embeddingDimensions && embeddingDimensions > 0
-    ? `\n    DIMENSIONS = ${embeddingDimensions}`
-    : "";
-  const dimsJson = embeddingDimensions && embeddingDimensions > 0
-    ? `, "dimensions": DIMENSIONS`
-    : "";
+  const dimsPayload =
+    embeddingDimensions && embeddingDimensions > 0
+      ? `\n    DIMENSIONS = ${embeddingDimensions}`
+      : "";
+  const dimsJson =
+    embeddingDimensions && embeddingDimensions > 0
+      ? `, "dimensions": DIMENSIONS`
+      : "";
 
   let embedSection = "";
   if (embeddingProvider === "openrouter") {
@@ -505,19 +495,21 @@ function genMainPinecone(
   region: string,
   isExcel: boolean,
   embeddingDimensions?: number,
-  defaultFilename?: string
+  defaultFilename?: string,
 ): string {
   const sourceFile = defaultFilename ? JSON.stringify(defaultFilename) : '""';
   const chunkCall = isExcel
     ? `    rows = read_document(file_path)\n    chunks = chunk_rows(rows, filename)`
     : `    text = read_document(file_path)\n    chunks = chunk_text(text, filename)`;
 
-  const dimsPayload = embeddingDimensions && embeddingDimensions > 0
-    ? `\n    DIMENSIONS = ${embeddingDimensions}`
-    : "";
-  const dimsJson = embeddingDimensions && embeddingDimensions > 0
-    ? `, "dimensions": DIMENSIONS`
-    : "";
+  const dimsPayload =
+    embeddingDimensions && embeddingDimensions > 0
+      ? `\n    DIMENSIONS = ${embeddingDimensions}`
+      : "";
+  const dimsJson =
+    embeddingDimensions && embeddingDimensions > 0
+      ? `, "dimensions": DIMENSIONS`
+      : "";
 
   let embedSection = "";
   if (embeddingProvider === "openrouter") {
@@ -648,19 +640,21 @@ function genMainMongodb(
   textField: string,
   isExcel: boolean,
   embeddingDimensions?: number,
-  defaultFilename?: string
+  defaultFilename?: string,
 ): string {
   const sourceFile = defaultFilename ? JSON.stringify(defaultFilename) : '""';
   const chunkCall = isExcel
     ? `    rows = read_document(file_path)\n    chunks = chunk_rows(rows, filename)`
     : `    text = read_document(file_path)\n    chunks = chunk_text(text, filename)`;
 
-  const dimsPayload = embeddingDimensions && embeddingDimensions > 0
-    ? `\n    DIMENSIONS = ${embeddingDimensions}`
-    : "";
-  const dimsJson = embeddingDimensions && embeddingDimensions > 0
-    ? `, "dimensions": DIMENSIONS`
-    : "";
+  const dimsPayload =
+    embeddingDimensions && embeddingDimensions > 0
+      ? `\n    DIMENSIONS = ${embeddingDimensions}`
+      : "";
+  const dimsJson =
+    embeddingDimensions && embeddingDimensions > 0
+      ? `, "dimensions": DIMENSIONS`
+      : "";
 
   let embedSection = "";
   if (embeddingProvider === "openrouter") {
@@ -759,8 +753,6 @@ if __name__ == "__main__":
 `;
 }
 
-// ─── pyproject.toml Generator ─────────────────────────────────────────────
-
 function genPyproject(deps: string[], stage: string): string {
   return `[build-system]
 requires = ["hatchling"]
@@ -780,14 +772,16 @@ pipeline = "pipeline:main"
 `;
 }
 
-// ─── .env Generator ───────────────────────────────────────────────────────
-
-function genEnvExample(pipeline: string, stage: ScriptStage, embeddingProvider?: EmbeddingProvider): string {
+function genEnvExample(
+  pipeline: string,
+  stage: ScriptStage,
+  embeddingProvider?: EmbeddingProvider,
+): string {
   const lines: string[] = [];
   if (pipeline.startsWith("OpenRouter") || embeddingProvider === "openrouter") {
     lines.push("OPENROUTER_API_KEY=");
   }
-  if ((stage === "embeddings" || stage === "pinecone")) {
+  if (stage === "embeddings" || stage === "pinecone") {
     if (embeddingProvider === "cohere") {
       lines.push("COHERE_API_KEY=");
     } else if (embeddingProvider === "voyage") {
@@ -802,8 +796,6 @@ function genEnvExample(pipeline: string, stage: ScriptStage, embeddingProvider?:
   }
   return lines.join("\n") + "\n";
 }
-
-// ─── Public API ───────────────────────────────────────────────────────────
 
 export interface GeneratedScript {
   "pipeline.py": string;
@@ -820,7 +812,6 @@ export function generatePipelineScript(
     pipeline === PIPELINE.EXCEL_SPREADSHEET ||
     pipeline === PIPELINE.CSV_SPREADSHEET;
 
-  // Build read function
   let readFn: string;
   switch (pipeline) {
     case PIPELINE.SIMPLE_TEXT:
@@ -861,10 +852,9 @@ export function generatePipelineScript(
       readFn = genReadSimpleText();
   }
 
-  // Build chunk function
-  const chunkFn = stage !== "parsing" ? genChunkFunction(chunkingParams, isSpreadsheet) : "";
+  const chunkFn =
+    stage !== "parsing" ? genChunkFunction(chunkingParams, isSpreadsheet) : "";
 
-  // Build main
   const embeddingProvider = config.embeddingProvider ?? "voyage";
   let mainFn: string;
   switch (stage) {

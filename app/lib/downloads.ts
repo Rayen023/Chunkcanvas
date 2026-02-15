@@ -1,7 +1,3 @@
-/**
- * Browser download utilities — trigger file saves with dynamic imports.
- */
-
 export async function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], {
     type: "application/json",

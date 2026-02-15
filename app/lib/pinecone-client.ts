@@ -1,7 +1,3 @@
-/**
- * Pinecone operations — browser-side via REST API (avoids fs dependency from SDK).
- * Uses direct fetch calls instead of the SDK to avoid Node.js-only modules.
- */
 import type { PineconeEnvironment, PineconeFieldMapping } from "./types";
 
 const PINECONE_CONTROL_URL = "https://api.pinecone.io";
@@ -24,17 +20,21 @@ export async function getIndexHost(
   });
   if (!res.ok) throw new Error(`Pinecone ${res.status}: ${res.statusText}`);
   const json = await res.json();
-  return json.host; // e.g. "my-index-abc123.svc.aped-4627-b74a.pinecone.io"
+  return json.host;
 }
 
-export async function listNamespaces(apiKey: string, indexName: string): Promise<string[]> {
+export async function listNamespaces(
+  apiKey: string,
+  indexName: string,
+): Promise<string[]> {
   const host = await getIndexHost(apiKey, indexName);
   const res = await fetch(`https://${host}/describe_index_stats`, {
     method: "POST",
     headers: { "Api-Key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
-  if (!res.ok) throw new Error(`Pinecone stats ${res.status}: ${res.statusText}`);
+  if (!res.ok)
+    throw new Error(`Pinecone stats ${res.status}: ${res.statusText}`);
   const json = await res.json();
   return Object.keys(json.namespaces || {});
 }
@@ -77,18 +77,15 @@ export async function uploadChunks(
   chunkSourceFiles?: string[],
   fieldMapping?: PineconeFieldMapping,
 ): Promise<void> {
-  // Get index host
   const host = await getIndexHost(pineconeKey, indexName);
   const dataUrl = `https://${host}`;
 
   let allEmbeddings: number[][] = [];
 
   if (existingEmbeddings && existingEmbeddings.length === chunks.length) {
-    // Use existing embeddings
     allEmbeddings = existingEmbeddings;
-    onProgress?.(50); // Skip generation progress
+    onProgress?.(50);
   } else {
-    // Generate embeddings
     if (!voyageKey) {
       throw new Error("Voyage API key is required to generate embeddings.");
     }
@@ -111,7 +108,6 @@ export async function uploadChunks(
     }
   }
 
-  // Upsert to Pinecone in batches of 100 via REST
   const UPSERT_BATCH = 100;
   const textKey = fieldMapping?.textField || "text";
   const fnKey = fieldMapping?.filenameField || "filename";

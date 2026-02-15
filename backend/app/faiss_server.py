@@ -26,7 +26,12 @@ class CreateIndexRequest(BaseModel):
     def validate_location(self) -> "CreateIndexRequest":
         if self.db_path and self.db_path.strip():
             return self
-        if self.base_dir and self.base_dir.strip() and self.db_name and self.db_name.strip():
+        if (
+            self.base_dir
+            and self.base_dir.strip()
+            and self.db_name
+            and self.db_name.strip()
+        ):
             return self
         raise ValueError("Provide either db_path or both base_dir and db_name")
 
@@ -148,20 +153,26 @@ def _load_meta(db_file: Path) -> dict[str, Any]:
             data["records"] = {}
         return data
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to read metadata: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to read metadata: {exc}"
+        ) from exc
 
 
 def _save_meta(db_file: Path, payload: dict[str, Any]) -> None:
     meta_file = _meta_path(db_file)
     meta_file.parent.mkdir(parents=True, exist_ok=True)
-    meta_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    meta_file.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def _read_index(db_file: Path) -> faiss.IndexIDMap2:
     try:
         loaded = faiss.read_index(str(db_file))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to load FAISS index: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to load FAISS index: {exc}"
+        ) from exc
 
     if isinstance(loaded, faiss.IndexIDMap2):
         return loaded
@@ -210,7 +221,9 @@ def create_index(payload: CreateIndexRequest) -> InfoResponse:
     try:
         faiss.write_index(index, str(db_file))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to write index: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to write index: {exc}"
+        ) from exc
 
     meta = {
         "dimension": payload.dimension,
@@ -232,7 +245,9 @@ def upsert_items(payload: UpsertRequest) -> dict[str, Any]:
     db_file = _normalize_db_path(payload.db_path)
 
     if not db_file.exists():
-        raise HTTPException(status_code=404, detail="Index file not found. Create the index first.")
+        raise HTTPException(
+            status_code=404, detail="Index file not found. Create the index first."
+        )
 
     index = _read_index(db_file)
     meta = _load_meta(db_file)
@@ -272,7 +287,9 @@ def upsert_items(payload: UpsertRequest) -> dict[str, Any]:
     try:
         faiss.write_index(index, str(db_file))
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to save index: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save index: {exc}"
+        ) from exc
 
     _save_meta(db_file, meta)
 
@@ -349,7 +366,7 @@ def get_content(
         )
 
     all_items.sort(key=lambda item: item["id"])
-    page = all_items[offset: offset + limit]
+    page = all_items[offset : offset + limit]
 
     return ContentResponse(
         db_path=str(db_file),

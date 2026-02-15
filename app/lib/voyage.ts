@@ -1,7 +1,3 @@
-/**
- * Voyage AI embedding client — browser-side fetch.
- */
-
 export async function generateEmbeddings(
   apiKey: string,
   model: string,

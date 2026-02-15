@@ -1,7 +1,3 @@
-/**
- * Cohere embedding client — browser-side fetch.
- */
-
 export async function generateEmbeddings(
   apiKey: string,
   model: string,
@@ -30,13 +26,11 @@ export async function generateEmbeddings(
   }
 
   const json = await res.json();
-  
-  // Cohere v1 returns embeddings.float if embedding_types: ["float"] is used
+
   if (json.embeddings && Array.isArray(json.embeddings.float)) {
     return json.embeddings.float;
   }
-  
-  // Fallback for v2 or different response structure
+
   if (Array.isArray(json.embeddings)) {
     return json.embeddings;
   }

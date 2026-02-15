@@ -1,19 +1,3 @@
-"""
-Docling Document Parsing Server — FastAPI service for ChunkCanvas.
-
-Converts PDFs using the IBM Granite Docling 258M VLM pipeline via a
-running vLLM server. The docling library handles the full
-VlmPipeline → DocumentConverter → export_to_markdown flow internally.
-
-Supports SSE streaming for real-time page-by-page progress, or a simple
-POST endpoint that returns the final markdown result.
-
-Endpoints:
-  GET  /health                       — readiness check
-  POST /docling/parse                — parse a PDF (returns final markdown)
-  POST /docling/parse/stream         — parse a PDF with SSE streaming progress
-"""
-
 from __future__ import annotations
 
 import json
@@ -27,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-# ── Docling imports ─────────────────────────────────────────────────────
 from docling.datamodel.base_models import ConversionStatus, InputFormat
 from docling.datamodel.pipeline_options import VlmConvertOptions, VlmPipelineOptions
 from docling.datamodel.vlm_engine_options import ApiVlmEngineOptions, VlmEngineType
@@ -37,12 +20,8 @@ from docling.pipeline.vlm_pipeline import VlmPipeline
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("docling-server")
 
-# ── Constants ───────────────────────────────────────────────────────────
-
 GRANITE_MODEL = "ibm-granite/granite-docling-258M"
 DEFAULT_VLLM_URL = "http://localhost:8000/v1/chat/completions"
-
-# ── FastAPI app ─────────────────────────────────────────────────────────
 
 app = FastAPI(title="ChunkCanvas Docling Server", version="0.3.0")
 app.add_middleware(
@@ -55,13 +34,6 @@ app.add_middleware(
 
 
 def _build_converter(vllm_url: str, timeout: int) -> DocumentConverter:
-    """Build a docling DocumentConverter following official docs.
-
-    Key: skip_special_tokens=False is required because vLLM strips special tokens
-    by default, which removes DocTags structural tags (<doctag>, <text>, <title>, etc.)
-    from the response. These are registered as special tokens in the granite-docling
-    tokenizer but are essential for DocTags → markdown conversion.
-    """
     vlm_options = VlmConvertOptions.from_preset(
         "granite_docling",
         engine_options=ApiVlmEngineOptions(
@@ -88,17 +60,18 @@ def _build_converter(vllm_url: str, timeout: int) -> DocumentConverter:
     )
 
 
-# ── Endpoints ───────────────────────────────────────────────────────────
-
-
 @app.get("/health")
 def health() -> dict[str, str]:
+
     return {"status": "ok"}
 
 
 class ParseResponse(BaseModel):
+
     filename: str
+
     markdown: str
+
     num_pages: int | None = None
 
 
@@ -108,27 +81,36 @@ async def parse_document(
     vllm_url: str = Form(DEFAULT_VLLM_URL),
     timeout: int = Form(120),
 ) -> ParseResponse:
-    """Parse a PDF and return the full markdown result."""
+
     ext = (file.filename or "document.pdf").rsplit(".", 1)[-1].lower()
+
     if ext != "pdf":
+
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+
         content = await file.read()
+
         tmp.write(content)
+
         tmp_path = Path(tmp.name)
 
     try:
+
         converter = _build_converter(vllm_url=vllm_url, timeout=timeout)
+
         result = converter.convert(tmp_path)
 
         if result.status != ConversionStatus.SUCCESS:
+
             raise HTTPException(
                 status_code=500,
                 detail=f"Conversion failed with status: {result.status}",
             )
 
         markdown = result.document.export_to_markdown()
+
         num_pages = len(result.pages)
 
         return ParseResponse(
@@ -136,12 +118,19 @@ async def parse_document(
             markdown=markdown,
             num_pages=num_pages,
         )
+
     except HTTPException:
+
         raise
+
     except Exception as e:
+
         logger.error("Docling parse error: %s", traceback.format_exc())
+
         raise HTTPException(status_code=500, detail=str(e)) from e
+
     finally:
+
         tmp_path.unlink(missing_ok=True)
 
 
@@ -151,72 +140,100 @@ async def parse_document_stream(
     vllm_url: str = Form(DEFAULT_VLLM_URL),
     timeout: int = Form(120),
 ) -> StreamingResponse:
-    """Parse a PDF and stream SSE events with page-by-page progress.
 
-    SSE event types:
-      - progress: { page, total_pages, status }
-      - page_result: { page, markdown }
-      - complete: { markdown, num_pages }
-      - error: { message }
-    """
     ext = (file.filename or "document.pdf").rsplit(".", 1)[-1].lower()
+
     if ext != "pdf":
+
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     file_content = await file.read()
 
     def _sse_event(event: str, data: dict) -> str:
+
         return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
     async def event_generator():
+
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+
             tmp.write(file_content)
+
             tmp_path = Path(tmp.name)
 
         try:
+
             converter = _build_converter(vllm_url=vllm_url, timeout=timeout)
 
-            yield _sse_event("progress", {"status": "converting", "page": 0, "total_pages": 0})
+            yield _sse_event(
+                "progress", {"status": "converting", "page": 0, "total_pages": 0}
+            )
 
             result = converter.convert(tmp_path)
 
             if result.status != ConversionStatus.SUCCESS:
-                yield _sse_event("error", {"message": f"Conversion failed: {result.status}"})
+
+                yield _sse_event(
+                    "error", {"message": f"Conversion failed: {result.status}"}
+                )
+
                 return
 
             doc = result.document
+
             num_pages = len(result.pages)
 
-            # Stream per-page markdown if pages are available
             if hasattr(doc, "pages") and doc.pages:
+
                 pages = list(doc.pages.values())
+
                 for i in range(len(pages)):
+
                     page_no = i + 1
-                    yield _sse_event("progress", {
-                        "status": "processing",
-                        "page": page_no,
-                        "total_pages": num_pages,
-                    })
-                    try:
-                        page_md = doc.export_to_markdown(page_no=page_no)
-                        yield _sse_event("page_result", {
+
+                    yield _sse_event(
+                        "progress",
+                        {
+                            "status": "processing",
                             "page": page_no,
-                            "markdown": page_md,
-                        })
+                            "total_pages": num_pages,
+                        },
+                    )
+
+                    try:
+
+                        page_md = doc.export_to_markdown(page_no=page_no)
+
+                        yield _sse_event(
+                            "page_result",
+                            {
+                                "page": page_no,
+                                "markdown": page_md,
+                            },
+                        )
+
                     except Exception:
+
                         logger.debug("Could not export page %d individually", page_no)
 
-            # Final complete event with full markdown
             markdown = doc.export_to_markdown()
-            yield _sse_event("complete", {
-                "markdown": markdown,
-                "num_pages": num_pages,
-            })
+
+            yield _sse_event(
+                "complete",
+                {
+                    "markdown": markdown,
+                    "num_pages": num_pages,
+                },
+            )
 
         except Exception as e:
+
             logger.error("Docling stream parse error: %s", traceback.format_exc())
+
             yield _sse_event("error", {"message": str(e)})
+
         finally:
+
             tmp_path.unlink(missing_ok=True)
 
     return StreamingResponse(

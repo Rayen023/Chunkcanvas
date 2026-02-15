@@ -1,6 +1,3 @@
-/**
- * Text chunking using LangChain RecursiveCharacterTextSplitter.
- */
 import type { ChunkingParams } from "./types";
 
 export async function chunkText(
@@ -8,16 +5,13 @@ export async function chunkText(
   params: ChunkingParams,
   filename: string,
 ): Promise<string[]> {
-  // Fast-path: if the whole document fits in one chunk, don't let the splitter
-  // create spurious empty/extra chunks based on separator boundaries.
   if (params.chunkSize >= text.length) {
     const only = text.trim().length > 0 ? [text] : [];
     return only;
   }
 
-  const { RecursiveCharacterTextSplitter } = await import(
-    "@langchain/textsplitters"
-  );
+  const { RecursiveCharacterTextSplitter } =
+    await import("@langchain/textsplitters");
 
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: params.chunkSize,
@@ -27,9 +21,7 @@ export async function chunkText(
   });
 
   const docs = await splitter.createDocuments([text], [{ filename }]);
-  return docs
-    .map((d) => d.pageContent)
-    .filter((c) => c.trim().length > 0);
+  return docs.map((d) => d.pageContent).filter((c) => c.trim().length > 0);
 }
 
 export async function chunkExcelRows(
@@ -37,9 +29,8 @@ export async function chunkExcelRows(
   params: ChunkingParams,
   filename: string,
 ): Promise<string[]> {
-  const { RecursiveCharacterTextSplitter } = await import(
-    "@langchain/textsplitters"
-  );
+  const { RecursiveCharacterTextSplitter } =
+    await import("@langchain/textsplitters");
 
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: params.chunkSize,
@@ -59,9 +50,7 @@ export async function chunkExcelRows(
 
     const docs = await splitter.createDocuments([rowText], [{ filename }]);
     allChunks.push(
-      ...docs
-        .map((d) => d.pageContent)
-        .filter((c) => c.trim().length > 0),
+      ...docs.map((d) => d.pageContent).filter((c) => c.trim().length > 0),
     );
   }
   return allChunks;

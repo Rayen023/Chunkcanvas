@@ -14,7 +14,6 @@ import { useIsLocalMode } from "@/app/lib/local-mode";
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 480;
 
-/* ── Inline Reset button component ─────────────────── */
 function ResetButton() {
   const resetAll = useAppStore((s) => s.resetAll);
   const pineconeSuccess = useAppStore((s) => s.pineconeSuccess);
@@ -56,7 +55,6 @@ function ResetButton() {
   );
 }
 
-/* ── Clear Preferences button component ─────────────────── */
 function ClearPrefsButton() {
   const [confirming, setConfirming] = useState(false);
 
@@ -100,7 +98,6 @@ export default function Sidebar() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
 
-  /* ── Resize handling ─────────────────────────────────── */
   const startResize = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -123,7 +120,6 @@ export default function Sidebar() {
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-    // Prevent text selection while dragging
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
 
@@ -135,7 +131,6 @@ export default function Sidebar() {
     };
   }, [isResizing, setWidth]);
 
-  /* ── Collapsed state: floating expand button ─────────── */
   if (collapsed) {
     return (
       <button
@@ -143,7 +138,6 @@ export default function Sidebar() {
         className="fixed top-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-lg bg-card border border-silver-light shadow-md hover:shadow-lg hover:border-sandy transition-all duration-200 cursor-pointer group"
         aria-label="Expand sidebar"
       >
-        {/* CC logo mini */}
         <div className="h-6 w-6 rounded-md bg-sandy flex items-center justify-center text-white font-bold text-[9px] group-hover:scale-105 transition-transform">
           CC
         </div>
@@ -151,10 +145,8 @@ export default function Sidebar() {
     );
   }
 
-  /* ── Expanded sidebar ────────────────────────────────── */
   return (
     <>
-      {/* Mobile Backdrop */}
       {!collapsed && (
         <div
           className="fixed inset-0 z-40 bg-gunmetal/20 backdrop-blur-sm lg:hidden"
@@ -171,7 +163,6 @@ export default function Sidebar() {
           ${collapsed ? "-translate-x-full lg:hidden" : "translate-x-0"}
         `}
       >
-        {/* ── Header ──────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="h-8 w-8 rounded-lg bg-sandy flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -182,7 +173,6 @@ export default function Sidebar() {
             </span>
           </div>
 
-          {/* Collapse button */}
           <button
             onClick={() => setCollapsed(true)}
             className="flex items-center justify-center h-7 w-7 rounded-md hover:bg-silver-light/60 text-silver-dark hover:text-gunmetal transition-colors cursor-pointer flex-shrink-0"
@@ -196,7 +186,6 @@ export default function Sidebar() {
 
         <div className="h-px bg-silver-light mx-4" />
 
-        {/* ── Scrollable content ──────────────────────── */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
           <AppInfo />
 
@@ -246,7 +235,6 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* ── Footer ──────────────────────────────────── */}
         <div className="px-4 py-3 border-t border-silver-light space-y-3">
           <ThemeToggle />
           <p className="text-[10px] text-silver-dark text-center">
@@ -254,7 +242,6 @@ export default function Sidebar() {
           </p>
         </div>
 
-        {/* ── Resize handle (Desktop only) ───────────── */}
         <div
           onMouseDown={startResize}
           className={`
@@ -265,7 +252,6 @@ export default function Sidebar() {
         />
       </aside>
 
-      {/* Overlay to catch mouse events during resize outside sidebar */}
       {isResizing && (
         <div className="fixed inset-0 z-40 cursor-col-resize" />
       )}

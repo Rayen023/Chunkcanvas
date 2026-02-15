@@ -1,16 +1,5 @@
-/**
- * vLLM API client — OpenAI-compatible browser-side fetch for local LLM inference.
- *
- * Endpoints used:
- *   GET  /v1/models           — list available models
- *   POST /v1/chat/completions — multimodal chat (vision → images as base64 data URLs)
- *   POST /v1/embeddings       — generate embeddings
- */
-
 import { DEFAULT_VLLM_ENDPOINT } from "./constants";
 import type { PageStreamCallback, ProgressCallback } from "./types";
-
-// ─── Types ────────────────────────────────────────────────────────────────
 
 export interface VllmModel {
   id: string;
@@ -18,8 +7,6 @@ export interface VllmModel {
   owned_by: string;
   max_model_len?: number;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function fileToBase64(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -30,14 +17,12 @@ function fileToBase64(file: File | Blob): Promise<string> {
         reject(new Error("FileReader produced empty result"));
         return;
       }
-      resolve(result); // vLLM expects full data URL (e.g. data:image/jpeg;base64,...)
+      resolve(result);
     };
     reader.onerror = () => reject(new Error("FileReader error"));
     reader.readAsDataURL(file);
   });
 }
-
-// ─── Health / Status Check ────────────────────────────────────────────────
 
 export async function checkVllmHealth(
   endpoint: string = DEFAULT_VLLM_ENDPOINT,
@@ -52,9 +37,6 @@ export async function checkVllmHealth(
   }
 }
 
-// ─── List Models ──────────────────────────────────────────────────────────
-
-/** Fetch models from /v1/models */
 export async function listVllmModels(
   endpoint: string = DEFAULT_VLLM_ENDPOINT,
 ): Promise<string[]> {
@@ -66,21 +48,17 @@ export async function listVllmModels(
   return ((json.data ?? []) as VllmModel[]).map((m) => m.id);
 }
 
-// ─── Chat API (Vision / Image Processing) ─────────────────────────────────
-
 interface VllmChatMessage {
   role: "user" | "assistant" | "system";
-  content: string | (
-    | { type: "text"; text: string }
-    | { type: "image_url"; image_url: { url: string } }
-    | { type: "video_url"; video_url: { url: string } }
-  )[];
+  content:
+    | string
+    | (
+        | { type: "text"; text: string }
+        | { type: "image_url"; image_url: { url: string } }
+        | { type: "video_url"; video_url: { url: string } }
+      )[];
 }
 
-/**
- * Send a chat request to vLLM with optional images or video.
- * Uses streaming mode (Server-Sent Events).
- */
 export async function chatVllm(
   model: string,
   messages: VllmChatMessage[],
@@ -130,7 +108,7 @@ export async function chatVllm(
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed || !trimmed.startsWith("data: ")) continue;
-        
+
         const data = trimmed.slice(6);
         if (data === "[DONE]") {
           streamDone = true;
@@ -159,10 +137,12 @@ export async function chatVllm(
   return chunks.join("");
 }
 
-// ─── PDF Page-by-Page Processing (Vision) ─────────────────────────────────
-
 async function renderPageToDataUrl(
-  pdf: Awaited<ReturnType<Awaited<typeof import("pdfjs-dist")>["getDocument"]>>["promise"] extends Promise<infer T> ? T : never,
+  pdf: Awaited<
+    ReturnType<Awaited<typeof import("pdfjs-dist")>["getDocument"]>
+  >["promise"] extends Promise<infer T>
+    ? T
+    : never,
   pageNum: number,
 ): Promise<string> {
   const page = await pdf.getPage(pageNum);
@@ -176,7 +156,10 @@ async function renderPageToDataUrl(
       canvas: canvas as unknown as HTMLCanvasElement,
     } as unknown as Parameters<typeof page.render>[0]).promise;
 
-    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.90 });
+    const blob = await canvas.convertToBlob({
+      type: "image/jpeg",
+      quality: 0.9,
+    });
     return fileToBase64(blob);
   } finally {
     page.cleanup();
@@ -193,8 +176,7 @@ export async function processPdfWithVllm(
   onPageStream?: PageStreamCallback,
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   const arrayBuffer = await pdfFile.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -214,28 +196,34 @@ export async function processPdfWithVllm(
 
   try {
     const rendered = await Promise.all(
-      Array.from({ length: totalPages }, (_, i) => i + 1).map(async (pageNum) => {
-        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-        return { pageNum, dataUrl: await renderPageToDataUrl(pdf, pageNum) };
-      }),
+      Array.from({ length: totalPages }, (_, i) => i + 1).map(
+        async (pageNum) => {
+          if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+          return { pageNum, dataUrl: await renderPageToDataUrl(pdf, pageNum) };
+        },
+      ),
     );
 
     onProgress?.(0, `Sending ${totalPages} pages to vLLM…`);
 
     const pageAccumulators: string[] = new Array(totalPages).fill("");
 
-    // Process pages concurrently
     const promises = rendered.map(async ({ pageNum, dataUrl }) => {
       try {
         const text = await chatVllm(
           model,
-          [{
-            role: "user",
-            content: [
-              { type: "text", text: `[Page ${pageNum}/${totalPages}] ${prompt}` },
-              { type: "image_url", image_url: { url: dataUrl } },
-            ],
-          }],
+          [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `[Page ${pageNum}/${totalPages}] ${prompt}`,
+                },
+                { type: "image_url", image_url: { url: dataUrl } },
+              ],
+            },
+          ],
           endpoint,
           signal,
           {
@@ -279,8 +267,6 @@ ${text}`;
   return pageTexts.filter(Boolean).join("\n\n");
 }
 
-// ─── Video Processing ─────────────────────────────────────────────────────
-
 export async function processVideoWithVllm(
   model: string,
   file: File,
@@ -289,11 +275,13 @@ export async function processVideoWithVllm(
   signal?: AbortSignal,
   onProgress?: ProgressCallback,
 ): Promise<string> {
-  const MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB hard limit
+  const MAX_SIZE_BYTES = 100 * 1024 * 1024;
 
   if (file.size === 0) throw new Error(`Video file "${file.name}" is empty`);
   if (file.size > MAX_SIZE_BYTES) {
-    throw new Error(`Video file too large (${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+    throw new Error(
+      `Video file too large (${(file.size / 1024 / 1024).toFixed(1)} MB)`,
+    );
   }
 
   onProgress?.(10, "Encoding video…");
@@ -312,16 +300,11 @@ export async function processVideoWithVllm(
     },
   ];
 
-  return chatVllm(
-    model,
-    messages,
-    endpoint,
-    signal,
-    { max_tokens: 4096, temperature: 0.2 }
-  );
+  return chatVllm(model, messages, endpoint, signal, {
+    max_tokens: 4096,
+    temperature: 0.2,
+  });
 }
-
-// ─── Embeddings ───────────────────────────────────────────────────────────
 
 export async function generateVllmEmbeddings(
   model: string,
@@ -337,7 +320,10 @@ export async function generateVllmEmbeddings(
   for (let i = 0; i < texts.length; i += batchSize) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-    onProgress?.((i / texts.length) * 100, `Embedding batch ${Math.floor(i / batchSize) + 1}...`);
+    onProgress?.(
+      (i / texts.length) * 100,
+      `Embedding batch ${Math.floor(i / batchSize) + 1}...`,
+    );
 
     const batch = texts.slice(i, i + batchSize);
 
@@ -362,7 +348,9 @@ export async function generateVllmEmbeddings(
       (item: { embedding: number[] }) => item.embedding,
     );
     if (embeddings.length === 0) {
-      throw new Error(`vLLM embed returned no embeddings for batch starting at index ${i}`);
+      throw new Error(
+        `vLLM embed returned no embeddings for batch starting at index ${i}`,
+      );
     }
     allEmbeddings.push(...embeddings);
   }
@@ -371,11 +359,6 @@ export async function generateVllmEmbeddings(
   return allEmbeddings;
 }
 
-// ─── Audio Transcription ──────────────────────────────────────────────────
-
-/**
- * Transcribe an audio file using vLLM's OpenAI-compatible /v1/audio/transcriptions endpoint.
- */
 export async function transcribeAudioVllm(
   model: string,
   audioFile: File,
@@ -402,8 +385,6 @@ export async function transcribeAudioVllm(
     throw new Error(`vLLM transcription (${model}): ${res.status} — ${text}`);
   }
 
-  // If response_format is "text", the body is the transcription.
-  // Otherwise, it's usually JSON { "text": "..." }
   const result = await res.text();
   try {
     const json = JSON.parse(result);

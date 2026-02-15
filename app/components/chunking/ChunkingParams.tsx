@@ -12,7 +12,6 @@ import {
 } from "@/app/lib/constants";
 import { ChunkingParams as ChunkingParamsType } from "@/app/lib/types";
 
-/** All known separators the user can toggle on/off */
 const ALL_SEPARATORS = ALL_AVAILABLE_SEPARATORS;
 
 export default function ChunkingParams() {
@@ -26,7 +25,6 @@ export default function ChunkingParams() {
   const [customSep, setCustomSep] = useState("");
   const [draggedSep, setDraggedSep] = useState<string | null>(null);
 
-  // Robustly clear drag state even if React re-renders during drag (which can prevent onDragEnd).
   useEffect(() => {
     const clear = () => setDraggedSep(null);
     window.addEventListener("dragend", clear);
@@ -49,7 +47,6 @@ export default function ChunkingParams() {
     return max > 0 ? max : 8192;
   }, [parsedContent, parsedResults]);
 
-  /** Whether current params differ from defaults */
   const isModified = useMemo(() => {
     if (chunkingParams.chunkSize !== DEFAULT_CHUNK_SIZE) return true;
     if (chunkingParams.chunkOverlap !== DEFAULT_CHUNK_OVERLAP) return true;
@@ -62,12 +59,10 @@ export default function ChunkingParams() {
     [chunkingParams.separators],
   );
 
-  /** Handle chunk size change with auto-clamping for overlap */
   const handleChunkSizeChange = (size: number) => {
     const nextSize = Math.max(128, size);
     const updates: Partial<ChunkingParamsType> = { chunkSize: nextSize };
     
-    // Force overlap to be at most 50% of chunk size or at least less than chunk size
     if (chunkingParams.chunkOverlap >= nextSize) {
       updates.chunkOverlap = Math.floor(nextSize / 2);
     }
@@ -75,7 +70,6 @@ export default function ChunkingParams() {
     setChunkingParams(updates);
   };
 
-  /** Toggle a separator on/off */
   const toggleSep = (sep: string) => {
     const next = activeSeps.has(sep)
       ? chunkingParams.separators.filter((s) => s !== sep)
@@ -83,7 +77,6 @@ export default function ChunkingParams() {
     setChunkingParams({ separators: next });
   };
 
-  /** Add a custom separator */
   const addCustom = () => {
     const sep = customSep
       .replace(/\\n/g, "\n")
@@ -94,9 +87,7 @@ export default function ChunkingParams() {
     setShowCustom(false);
   };
 
-  /** Drag and drop handlers */
   const handleDragStart = (e: React.DragEvent, sep: string) => {
-    // Ensure a consistent drag lifecycle across browsers.
     e.dataTransfer.effectAllowed = "move";
     try {
       e.dataTransfer.setData("text/plain", sep);
@@ -123,7 +114,6 @@ export default function ChunkingParams() {
     setDraggedSep(null);
   };
 
-  /** Human-readable label for a separator */
   const label = (sep: string): string =>
     DEFAULT_SEPARATOR_LABELS[sep] ??
     JSON.stringify(sep).slice(1, -1); // fallback: escaped string

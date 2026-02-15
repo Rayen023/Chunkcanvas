@@ -1,6 +1,3 @@
-/**
- * OpenRouter API client — browser-side fetch with retry logic.
- */
 import {
   OPENROUTER_API_URL,
   OPENROUTER_DEFAULT_MODEL,
@@ -11,8 +8,6 @@ import {
   FALLBACK_MODELS,
 } from "./constants";
 import type { Modality, OpenRouterModel, OpenRouterModelFull, PdfEngine, ProgressCallback } from "./types";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -27,7 +22,6 @@ function fileToBase64(file: File | Blob): Promise<string> {
         reject(new Error("FileReader produced empty result"));
         return;
       }
-      // strip dataURL prefix if present
       const idx = result.indexOf(",");
       if (idx < 0) {
         reject(new Error("Invalid data URL format: no comma found"));
@@ -46,8 +40,6 @@ function fileToBase64(file: File | Blob): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
-// ─── Core API Call with Retry ─────────────────────────────────────────────
 
 async function callOpenRouter(
   apiKey: string,
@@ -113,13 +105,10 @@ async function callOpenRouter(
   throw lastError ?? new Error("OpenRouter request failed after retries");
 }
 
-// ─── Fetch & Filter Models ────────────────────────────────────────────────
-
 let _modelsCache: { data: OpenRouterModel[]; ts: number } | null = null;
 let _modelsFullCache: { data: OpenRouterModelFull[]; ts: number } | null = null;
-const CACHE_TTL = 600_000; // 10 minutes
+const CACHE_TTL = 600_000;
 
-/** Parse raw model data from OpenRouter API into full model objects */
 function parseModelData(rawModels: Record<string, unknown>[]): OpenRouterModelFull[] {
   return rawModels
     .filter((m) => m.id && m.architecture)
@@ -159,7 +148,6 @@ export async function fetchAvailableModels(
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    console.log("[OpenRouter] Fetching models...");
     const res = await fetch(`${OPENROUTER_API_URL}/models`, {
       headers,
     });
@@ -184,12 +172,10 @@ export async function fetchAvailableModels(
     _modelsCache = { data: models, ts: Date.now() };
     return models;
   } catch {
-    // Return fallback
     return Object.values(FALLBACK_MODELS);
   }
 }
 
-/** Fetch all models with full metadata (pricing, context_length, output_modalities) */
 export async function fetchAvailableModelsFull(
   apiKey: string,
 ): Promise<OpenRouterModelFull[]> {
@@ -203,7 +189,6 @@ export async function fetchAvailableModelsFull(
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    console.log("[OpenRouter] Fetching full models...");
     const res = await fetch(`${OPENROUTER_API_URL}/models`, {
       headers,
     });
@@ -213,7 +198,6 @@ export async function fetchAvailableModelsFull(
     const models = parseModelData(json.data ?? []);
     _modelsFullCache = { data: models, ts: Date.now() };
 
-    // Also populate the basic cache
     _modelsCache = {
       data: models.map((m) => ({
         id: m.id,
@@ -235,7 +219,6 @@ export async function fetchAvailableModelsFull(
   }
 }
 
-/** Get embedding-only models (output_modalities includes "embeddings") */
 export function getEmbeddingModels(
   models: OpenRouterModelFull[],
 ): OpenRouterModelFull[] {
@@ -244,7 +227,6 @@ export function getEmbeddingModels(
   );
 }
 
-/** Get models for a given input modality with full metadata */
 export function getModelsForModalityFull(
   models: OpenRouterModelFull[],
   modality: Modality,
@@ -262,7 +244,6 @@ export function getModelsForModalityFull(
   return filtered;
 }
 
-/** Format pricing for display: convert per-token price to $/M tokens */
 export function formatPricing(pricePerToken: string): string {
   const val = parseFloat(pricePerToken);
   if (isNaN(val) || val === 0) return "Free";
@@ -272,7 +253,6 @@ export function formatPricing(pricePerToken: string): string {
   return `$${perMillion.toFixed(2)}/M`;
 }
 
-/** Format context length for display */
 export function formatContextLength(ctx: number): string {
   if (!ctx || ctx === 0) return "?";
   if (ctx >= 1_000_000) return `${(ctx / 1_000_000).toFixed(1)}M`;
@@ -288,7 +268,6 @@ export function getModelsForModality(
     m.input_modalities.includes(modality),
   );
 
-  // Sort default model first
   filtered.sort((a, b) => {
     if (a.id === OPENROUTER_DEFAULT_MODEL) return -1;
     if (b.id === OPENROUTER_DEFAULT_MODEL) return 1;
@@ -298,13 +277,6 @@ export function getModelsForModality(
   return filtered;
 }
 
-// ─── OpenRouter Embeddings ────────────────────────────────────────────────
-
-/**
- * Generate embeddings using the OpenRouter /embeddings endpoint.
- * Processes texts in batches to avoid payload limits.
- * @param dimensions - Optional output dimensions (e.g. 1024). Omit to use model's default.
- */
 export async function generateOpenRouterEmbeddings(
   apiKey: string,
   model: string,
@@ -386,8 +358,6 @@ export async function generateOpenRouterEmbeddings(
   return allEmbeddings;
 }
 
-// ─── PDF Page-by-Page Processing ──────────────────────────────────────────
-
 export async function processPdfWithOpenRouter(
   apiKey: string,
   model: string,
@@ -398,7 +368,6 @@ export async function processPdfWithOpenRouter(
   signal?: AbortSignal,
   pagesPerBatch?: number,
 ): Promise<string> {
-  // Dynamically import pdf-lib (heavy library → code-split)
   const { PDFDocument } = await import("pdf-lib");
 
   const fileBytes = await pdfFile.arrayBuffer();
@@ -406,7 +375,6 @@ export async function processPdfWithOpenRouter(
   const totalPages = pdfDoc.getPageCount();
   const pageTexts: string[] = [];
 
-  // Default to processing all pages at once if pagesPerBatch is 0 or undefined
   const batchSize = !pagesPerBatch || pagesPerBatch < 1 ? totalPages : pagesPerBatch;
 
   for (let i = 0; i < totalPages; i += batchSize) {
@@ -416,20 +384,17 @@ export async function processPdfWithOpenRouter(
     const isBatch = batchSize > 1;
 
     try {
-      // Create a new PDF for this batch
       const batchDoc = await PDFDocument.create();
-      // copyPages indices are 0-based
       const pageIndices = Array.from({ length: endPage - i }, (_, k) => i + k);
       const copiedPages = await batchDoc.copyPages(pdfDoc, pageIndices);
       copiedPages.forEach((page) => batchDoc.addPage(page));
       
       const batchBytes = await batchDoc.save();
       
-      // Convert to base64 in chunks
       const u8 = new Uint8Array(batchBytes);
       let binary = "";
       const len = u8.byteLength;
-      const CHUNK_SIZE = 0x8000; // 32k
+      const CHUNK_SIZE = 0x8000;
       for (let k = 0; k < len; k += CHUNK_SIZE) {
         const chunk = u8.subarray(k, k + CHUNK_SIZE);
         // @ts-expect-error - apply accepts typed array
@@ -482,8 +447,6 @@ export async function processPdfWithOpenRouter(
   return pageTexts.join("\n\n");
 }
 
-// ─── Image Processing ─────────────────────────────────────────────────────
-
 export async function processImageWithOpenRouter(
   apiKey: string,
   model: string,
@@ -512,8 +475,6 @@ export async function processImageWithOpenRouter(
   return callOpenRouter(apiKey, model, messages, undefined, signal);
 }
 
-// ─── Audio Processing ─────────────────────────────────────────────────────
-
 export async function processAudioWithOpenRouter(
   apiKey: string,
   model: string,
@@ -540,8 +501,6 @@ export async function processAudioWithOpenRouter(
   return callOpenRouter(apiKey, model, messages, undefined, signal);
 }
 
-// ─── Video Processing ─────────────────────────────────────────────────────
-
 export async function processVideoWithOpenRouter(
   apiKey: string,
   model: string,
@@ -550,7 +509,7 @@ export async function processVideoWithOpenRouter(
   signal?: AbortSignal,
   onProgress?: ProgressCallback,
 ): Promise<string> {
-  const MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB hard limit
+  const MAX_SIZE_BYTES = 100 * 1024 * 1024;
 
   if (file.size === 0) {
     throw new Error(`Video file "${file.name}" is empty (0 bytes)`);

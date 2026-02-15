@@ -46,7 +46,6 @@ interface OllamaEmbedModel {
   embeddingDimensions?: number;
 }
 
-/** Format pricing for display: convert per-token price to $/M tokens */
 function formatPricing(pricePerToken: string): string {
   const val = parseFloat(pricePerToken);
   if (isNaN(val) || val === 0) return "Free";
@@ -56,7 +55,6 @@ function formatPricing(pricePerToken: string): string {
   return `$${perMillion.toFixed(2)}/M`;
 }
 
-/** Format context length for display */
 function formatCtx(ctx: number): string {
   if (!ctx || ctx === 0) return "?";
   if (ctx >= 1_000_000) return `${(ctx / 1_000_000).toFixed(1)}M`;

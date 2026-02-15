@@ -1,4 +1,9 @@
-import { ChromaClient, CloudClient, type Collection, type Metadata } from "chromadb";
+import {
+  ChromaClient,
+  CloudClient,
+  type Collection,
+  type Metadata,
+} from "chromadb";
 
 export type ChromaMode = "local" | "cloud";
 
@@ -10,12 +15,16 @@ export interface ChromaConnectionOptions {
   cloudDatabase?: string;
 }
 
-const DEFAULT_LOCAL_URL = process.env.CHROMA_LOCAL_URL || "http://localhost:8000";
+const DEFAULT_LOCAL_URL =
+  process.env.CHROMA_LOCAL_URL || "http://localhost:8000";
 
 function getCloudConfigFromEnv() {
-  const apiKey = process.env.CHROMA_API_KEY || process.env.NEXT_PUBLIC_CHROMA_API_KEY;
-  const tenant = process.env.CHROMA_TENANT || process.env.NEXT_PUBLIC_CHROMA_TENANT;
-  const database = process.env.CHROMA_DATABASE || process.env.NEXT_PUBLIC_CHROMA_DATABASE;
+  const apiKey =
+    process.env.CHROMA_API_KEY || process.env.NEXT_PUBLIC_CHROMA_API_KEY;
+  const tenant =
+    process.env.CHROMA_TENANT || process.env.NEXT_PUBLIC_CHROMA_TENANT;
+  const database =
+    process.env.CHROMA_DATABASE || process.env.NEXT_PUBLIC_CHROMA_DATABASE;
 
   if (!apiKey || !tenant || !database) {
     throw new Error(
@@ -29,13 +38,21 @@ function getCloudConfigFromEnv() {
 export function getChromaClient(options: ChromaConnectionOptions) {
   if (options.mode === "cloud") {
     const cloud = {
-      apiKey: options.cloudApiKey || process.env.CHROMA_API_KEY || process.env.NEXT_PUBLIC_CHROMA_API_KEY,
-      tenant: options.cloudTenant || process.env.CHROMA_TENANT || process.env.NEXT_PUBLIC_CHROMA_TENANT,
-      database: options.cloudDatabase || process.env.CHROMA_DATABASE || process.env.NEXT_PUBLIC_CHROMA_DATABASE,
+      apiKey:
+        options.cloudApiKey ||
+        process.env.CHROMA_API_KEY ||
+        process.env.NEXT_PUBLIC_CHROMA_API_KEY,
+      tenant:
+        options.cloudTenant ||
+        process.env.CHROMA_TENANT ||
+        process.env.NEXT_PUBLIC_CHROMA_TENANT,
+      database:
+        options.cloudDatabase ||
+        process.env.CHROMA_DATABASE ||
+        process.env.NEXT_PUBLIC_CHROMA_DATABASE,
     };
 
     if (!cloud.apiKey || !cloud.tenant || !cloud.database) {
-      // fall back to env error message for consistency
       getCloudConfigFromEnv();
     }
 
@@ -51,20 +68,34 @@ export function getChromaClient(options: ChromaConnectionOptions) {
   });
 }
 
-export async function listCollectionNames(options: ChromaConnectionOptions): Promise<string[]> {
+export async function listCollectionNames(
+  options: ChromaConnectionOptions,
+): Promise<string[]> {
   const client = getChromaClient(options);
   const collections = await client.listCollections({ limit: 500, offset: 0 });
   return collections.map((collection) => collection.name);
 }
 
-export async function createCollection(options: ChromaConnectionOptions & { name: string; metadata?: Metadata }) {
+export async function createCollection(
+  options: ChromaConnectionOptions & { name: string; metadata?: Metadata },
+) {
   const client = getChromaClient(options);
-  return client.createCollection({ name: options.name, metadata: options.metadata, embeddingFunction: null });
+  return client.createCollection({
+    name: options.name,
+    metadata: options.metadata,
+    embeddingFunction: null,
+  });
 }
 
-export async function getOrCreateCollection(options: ChromaConnectionOptions & { name: string; metadata?: Metadata }) {
+export async function getOrCreateCollection(
+  options: ChromaConnectionOptions & { name: string; metadata?: Metadata },
+) {
   const client = getChromaClient(options);
-  return client.getOrCreateCollection({ name: options.name, metadata: options.metadata, embeddingFunction: null });
+  return client.getOrCreateCollection({
+    name: options.name,
+    metadata: options.metadata,
+    embeddingFunction: null,
+  });
 }
 
 export interface ChromaUpsertPayload {
@@ -82,7 +113,11 @@ export async function upsertCollectionData(
   },
 ): Promise<Collection> {
   const collection = options.createIfMissing
-    ? await getOrCreateCollection({ mode: options.mode, localUrl: options.localUrl, name: options.name })
+    ? await getOrCreateCollection({
+        mode: options.mode,
+        localUrl: options.localUrl,
+        name: options.name,
+      })
     : await getChromaClient(options).getCollection({ name: options.name });
 
   await collection.upsert(options.payload);

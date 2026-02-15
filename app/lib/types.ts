@@ -1,5 +1,3 @@
-// ─── Pipeline & Extension Types ───────────────────────────────────────────
-
 export const PIPELINE = {
   SIMPLE_TEXT: "Simple Text",
   EXCEL_SPREADSHEET: "Excel Spreadsheet",
@@ -19,8 +17,6 @@ export const PIPELINE = {
 
 export type PipelineName = (typeof PIPELINE)[keyof typeof PIPELINE];
 
-// ─── Modality ─────────────────────────────────────────────────────────────
-
 export type Modality = "file" | "image" | "audio" | "video";
 
 export const PIPELINE_MODALITY: Record<string, Modality> = {
@@ -37,31 +33,28 @@ export const PIPELINE_MODALITY: Record<string, Modality> = {
   [PIPELINE.DOCLING_PDF]: "file",
 };
 
-// ─── OpenRouter Model ─────────────────────────────────────────────────────
-
 export interface OpenRouterModel {
   id: string;
   name: string;
   input_modalities: string[];
 }
 
-/** Extended model info with pricing & context window */
 export interface OpenRouterModelFull extends OpenRouterModel {
   output_modalities: string[];
   context_length: number;
-  /** Output embedding dimensions (null if unknown). Only present for embedding models. */
   dimensions?: number | null;
   pricing: {
-    prompt: string;    // cost per token (string decimal)
+    prompt: string;
     completion: string;
   };
 }
 
-// ─── Embedding Provider ──────────────────────────────────────────────────
-
-export type EmbeddingProvider = "voyage" | "openrouter" | "ollama" | "vllm" | "cohere";
-
-// ─── PDF Engine ───────────────────────────────────────────────────────────
+export type EmbeddingProvider =
+  | "voyage"
+  | "openrouter"
+  | "ollama"
+  | "vllm"
+  | "cohere";
 
 export type PdfEngine = "native" | "pdf-text" | "mistral-ocr";
 
@@ -71,8 +64,6 @@ export interface PdfEngineOption {
   description: string;
 }
 
-// ─── Voyage AI Model ─────────────────────────────────────────────────────
-
 export interface VoyageModel {
   key: string;
   label: string;
@@ -80,16 +71,12 @@ export interface VoyageModel {
   description: string;
 }
 
-// ─── Cohere Model ────────────────────────────────────────────────────────
-
 export interface CohereModel {
   key: string;
   label: string;
   dimensions: number;
   description: string;
 }
-
-// ─── Pinecone Environment ────────────────────────────────────────────────
 
 export interface PineconeEnvironment {
   key: string;
@@ -105,8 +92,6 @@ export type VectorDbProvider = "pinecone" | "chroma" | "mongodb" | "faiss";
 export type FaissMetric = "cosine" | "l2" | "ip";
 export type FaissDbMode = "existing" | "create";
 
-// ─── Chunking Parameters ─────────────────────────────────────────────────
-
 export type ChunkingType = "recursive";
 
 export interface ChunkingParams {
@@ -116,16 +101,12 @@ export interface ChunkingParams {
   chunkOverlap: number;
 }
 
-// ─── OpenRouter Form Data ────────────────────────────────────────────────
-
 export interface OpenRouterFormData {
   apiKey: string;
   model: string;
   pdfEngine: PdfEngine;
   prompt: string;
 }
-
-// ─── Full App State Types ────────────────────────────────────────────────
 
 export interface EmbeddingResult {
   index: number;
@@ -153,28 +134,19 @@ export interface EmbeddingsJson {
   chunks: EmbeddingResult[];
 }
 
-// ─── Progress Callback ──────────────────────────────────────────────────
-
-// ─── Multi-file Parsing Result ──────────────────────────────────────────
-
 export interface ParsedFileResult {
   filename: string;
   content: string;
   excelRows?: string[];
   pipeline: string;
-  /** Internal cache key used to reuse parses when settings match. */
   cacheKey?: string;
 }
-
-// ─── Pinecone Field Mapping ────────────────────────────────────────────
 
 export interface PineconeFieldMapping {
   idPrefix: string;
   textField: string;
   filenameField: string;
 }
-
-// ─── MongoDB Field Mapping ────────────────────────────────────────────
 
 export interface MongodbIndexField {
   type: "vector" | "filter" | string;
@@ -204,25 +176,18 @@ export interface MongodbFieldMapping {
   similarity: "cosine" | "euclidean" | "dotProduct";
 }
 
-// ─── Per-Extension Pipeline Config ─────────────────────────────────────
-
 export interface ExtPipelineConfig {
-  // OpenRouter
   openrouterModel: string;
   openrouterPrompt: string;
   openrouterPagesPerBatch: number;
   pdfEngine: PdfEngine;
-  // Ollama
   ollamaEndpoint: string;
   ollamaModel: string;
   ollamaPrompt: string;
-  // vLLM
   vllmEndpoint: string;
   vllmModel: string;
   vllmPrompt: string;
-  // Docling (granite-docling via vLLM)
   doclingEndpoint: string;
-  // Excel / CSV
   excelSheet: string;
   excelSheets: string[];
   excelColumn: string;
@@ -232,12 +197,6 @@ export interface ExtPipelineConfig {
 
 export type ProgressCallback = (pct: number, message?: string) => void;
 
-/**
- * Called per streaming token during Ollama PDF processing.
- * @param pageNum  1-based page number
- * @param token    the incremental text token just received
- * @param fullPage the full accumulated text for this page so far
- */
 export type PageStreamCallback = (
   pageNum: number,
   token: string,

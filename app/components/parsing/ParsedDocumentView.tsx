@@ -7,7 +7,6 @@ import ActionRow from "@/app/components/downloads/ActionRow";
 import type { ScriptConfig } from "@/app/lib/script-generator";
 import { countTokens } from "@/app/lib/tokenizer";
 
-/** Regex matching the file separator used during multi-file parsing: ═══ filename ═══ */
 const FILE_SEP_RE = /═══ (.+?) ═══/g;
 
 export default function ParsedDocumentView() {
@@ -42,7 +41,6 @@ export default function ParsedDocumentView() {
   const prevLenRef = useRef(0);
   const userScrolledRef = useRef(false);
 
-  // ── Derive file sections from parsed content ───────────
   const fileSections = useMemo(() => {
     if (!parsedContent) return [];
     const sections: { name: string; charOffset: number }[] = [];
@@ -54,7 +52,6 @@ export default function ParsedDocumentView() {
     return sections;
   }, [parsedContent]);
 
-  /** Scroll the textarea so the given character offset is at the top */
   const scrollToFile = useCallback(
     (name: string) => {
       const el = textareaRef.current;
@@ -63,8 +60,6 @@ export default function ParsedDocumentView() {
       const section = fileSections.find((s) => s.name === name);
       if (!section) return;
 
-      // Measure exact pixel position using an off-screen mirror textarea
-      // that matches all text-layout-relevant CSS properties.
       const mirror = document.createElement("textarea");
       const cs = getComputedStyle(el);
       mirror.style.position = "fixed";
@@ -89,11 +84,9 @@ export default function ParsedDocumentView() {
       const targetY = mirror.scrollHeight;
       document.body.removeChild(mirror);
 
-      // Place cursor first (setSelectionRange triggers browser auto-scroll),
-      // then override scrollTop in the next frame so our position wins.
       el.focus();
       el.setSelectionRange(section.charOffset, section.charOffset);
-      // Jump so the line above the separator is visible at the top
+
       const lineHeight = parseFloat(cs.lineHeight) || 21;
       const scrollPos = Math.max(0, targetY - lineHeight * 2);
       el.scrollTop = scrollPos;
@@ -104,7 +97,6 @@ export default function ParsedDocumentView() {
     [parsedContent, fileSections],
   );
 
-  // Hide the "Saved" indicator after 2 seconds
   useEffect(() => {
     if (showSaved) {
       const timer = setTimeout(() => setShowSaved(false), 2000);
@@ -112,7 +104,6 @@ export default function ParsedDocumentView() {
     }
   }, [showSaved]);
 
-  // Reset scroll tracking when parsing starts
   useEffect(() => {
     if (isParsing) {
       userScrolledRef.current = false;
@@ -120,7 +111,6 @@ export default function ParsedDocumentView() {
     }
   }, [isParsing]);
 
-  // Auto-scroll to bottom during streaming (unless user scrolled up)
   useEffect(() => {
     const el = textareaRef.current;
     if (!el || !isParsing || userScrolledRef.current) return;
@@ -131,7 +121,6 @@ export default function ParsedDocumentView() {
     }
   }, [parsedContent, isParsing]);
 
-  // Detect if user scrolled away from bottom
   const handleScroll = useCallback(() => {
     const el = textareaRef.current;
     if (!el || !isParsing) return;
@@ -143,12 +132,10 @@ export default function ParsedDocumentView() {
     return countTokens(parsedContent);
   }, [parsedContent]);
 
-  // Auto-resize textarea height
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     
-    // Reset height to auto to get correct scrollHeight for shrinking content
     el.style.height = "auto";
     const newHeight = Math.min(Math.max(el.scrollHeight + 2, 150), 600);
     el.style.height = `${newHeight}px`;
@@ -163,17 +150,14 @@ export default function ParsedDocumentView() {
     if (!parsedContent) return;
     setIsDownloadingText(true);
     try {
-      // Single file download (no zip)
       if (parsedResults.length <= 1) {
         const { downloadString } = await import("@/app/lib/downloads");
-        // Prefer result filename if available, else parsedFilename
         const r = parsedResults[0];
         const content = r ? r.content : parsedContent;
         const fname = r ? r.filename : parsedFilename;
         const stem = fname.replace(/\.[^/.]+$/, "");
         await downloadString(content, `${stem}.md`, "text/markdown;charset=utf-8");
       } else {
-        // Multi-file download (zip)
         const { downloadZip } = await import("@/app/lib/downloads");
         const files: Record<string, string> = {};
         parsedResults.forEach((r) => {
@@ -216,7 +200,6 @@ export default function ParsedDocumentView() {
         pineconeRegion: env?.region,
       };
 
-      // "parsing" stage just includes reading and saving text
       const files = generatePipelineScript("parsing", config);
       const stem = parsedFilename.replace(/\.[^.]+$/, "") || "document";
       await downloadZip(files as unknown as Record<string, string>, `${stem}_parsing_pipeline.zip`);
@@ -275,7 +258,6 @@ export default function ParsedDocumentView() {
         </div>
       </div>
 
-      {/* ── File navigation tabs (multi-file only) ─────────── */}
       {fileSections.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5 pb-1">
           <span className="inline-flex items-center gap-1 text-xs font-medium text-silver-dark whitespace-nowrap mr-1">
@@ -323,7 +305,6 @@ export default function ParsedDocumentView() {
         />
       </div>
 
-      {/* ── Action Buttons ─────────────────────────────────── */}
       {!isParsing && parsedContent && (
         <div className="pt-2">
           <ActionRow
