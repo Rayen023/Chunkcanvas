@@ -240,7 +240,7 @@ export const VLLM_RECOMMENDED_MODELS = {
 } as const;
 
 export const DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434";
-export const DEFAULT_CHROMA_ENDPOINT = "http://localhost:8002";
+export const DEFAULT_CHROMA_ENDPOINT = "http://localhost:8030";
 export const DEFAULT_FAISS_ENDPOINT = "http://localhost:8010";
 export const DEFAULT_DOCLING_ENDPOINT = "http://localhost:8020";
 export const GRANITE_DOCLING_MODEL = "ibm-granite/granite-docling-258M";

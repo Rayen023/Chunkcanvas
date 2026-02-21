@@ -21,13 +21,13 @@ export default function ChromaStatus() {
     try {
       const base = localUrl.replace(/\/+$/, "");
       const fullUrl = `${base}/api/v2/heartbeat`;
-      
+
       const res = await fetch("/api/chroma/proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: fullUrl,
-          method: "GET"
+          method: "GET",
         }),
         signal: AbortSignal.timeout(10000),
       });
@@ -42,7 +42,9 @@ export default function ChromaStatus() {
     } catch (err) {
       setStatus("error");
       if (err instanceof TypeError && err.message === "Failed to fetch") {
-        setMessage("Failed to fetch. This usually means the server is down OR CORS is disabled. Ensure you run Chroma with CORS enabled (see instructions below).");
+        setMessage(
+          "Failed to fetch. This usually means the server is down OR CORS is disabled. Ensure you run Chroma with CORS enabled (see instructions below).",
+        );
       } else {
         setMessage(err instanceof Error ? err.message : String(err));
       }
@@ -52,7 +54,7 @@ export default function ChromaStatus() {
   }, [localUrl]);
 
   const dockerCmd = `docker compose up chroma -d`;
-  const manualCmd = `chroma run --host localhost --port 8002 --path ./backend/my_chroma_data`;
+  const manualCmd = `chroma run --host localhost --port 8030 --path ./backend/my_chroma_data`;
 
   return (
     <details className="group">
@@ -71,7 +73,9 @@ export default function ChromaStatus() {
 
       <div className="mt-3 space-y-2 p-3 rounded-lg bg-config-bg border border-config-border">
         <div className="flex items-center justify-between">
-          <label className="block text-xs text-gunmetal-light">Chroma URL</label>
+          <label className="block text-xs text-gunmetal-light">
+            Chroma URL
+          </label>
           <button
             onClick={check}
             disabled={checking}
@@ -84,7 +88,7 @@ export default function ChromaStatus() {
           type="text"
           value={localUrl}
           onChange={(e) => setLocalUrl(e.target.value)}
-          placeholder="http://localhost:8002"
+          placeholder="http://localhost:8030"
           className="w-full rounded-lg border border-silver bg-card text-gunmetal px-3 py-1.5 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
         />
 
@@ -118,11 +122,15 @@ export default function ChromaStatus() {
           </button>
           {showExamples && (
             <div className="mt-2 space-y-2">
-              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Docker Compose</p>
+              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">
+                Docker Compose
+              </p>
               <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
                 {dockerCmd}
               </div>
-              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Standalone</p>
+              <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">
+                Standalone
+              </p>
               <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
                 {manualCmd}
               </div>

@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/app/lib/store";
 import { PINECONE_ENVIRONMENTS, PIPELINE } from "@/app/lib/constants";
 import ActionRow from "@/app/components/downloads/ActionRow";
-import { ProviderSelector, ConfigContainer, ConfigHeader, ProviderOption } from "@/app/components/shared/ConfigSection";
+import {
+  ProviderSelector,
+  ConfigContainer,
+  ConfigHeader,
+  ProviderOption,
+} from "@/app/components/shared/ConfigSection";
 import StatusMessage from "@/app/components/shared/StatusMessage";
 import Tooltip from "@/app/components/shared/Tooltip";
 import FaissSection from "@/app/components/faiss/FaissSection";
@@ -19,10 +24,34 @@ interface ChromaItem {
 }
 
 const DB_OPTIONS: ProviderOption[] = [
-  { id: "pinecone", label: "Pinecone", icon: "/tech-icons/Pinecone-Icon--Streamline-Svg-Logos.svg", badge: "Cloud", requiresApiKey: true },
-  { id: "chroma", label: "Chroma", icon: "/tech-icons/Chroma--Streamline-Svg-Logos.svg", badge: "Hybrid", requiresApiKey: false },
-  { id: "mongodb", label: "MongoDB", icon: "/tech-icons/MongoDB.svg", badge: "Cloud", requiresApiKey: true },
-  { id: "faiss", label: "FAISS", icon: "/tech-icons/meta-color.svg", badge: "Local", requiresApiKey: false },
+  {
+    id: "pinecone",
+    label: "Pinecone",
+    icon: "/tech-icons/Pinecone-Icon--Streamline-Svg-Logos.svg",
+    badge: "Cloud",
+    requiresApiKey: true,
+  },
+  {
+    id: "chroma",
+    label: "Chroma",
+    icon: "/tech-icons/Chroma--Streamline-Svg-Logos.svg",
+    badge: "Hybrid",
+    requiresApiKey: false,
+  },
+  {
+    id: "mongodb",
+    label: "MongoDB",
+    icon: "/tech-icons/MongoDB.svg",
+    badge: "Cloud",
+    requiresApiKey: true,
+  },
+  {
+    id: "faiss",
+    label: "FAISS",
+    icon: "/tech-icons/meta-color.svg",
+    badge: "Local",
+    requiresApiKey: false,
+  },
 ];
 
 export default function PineconeSection() {
@@ -33,7 +62,7 @@ export default function PineconeSection() {
   const chunksHash = useAppStore((s) => s.chunksHash);
   const embeddingsForChunksHash = useAppStore((s) => s.embeddingsForChunksHash);
   const pipeline = useAppStore((s) => s.pipeline);
-  
+
   // Script dependencies
   const chunkingParams = useAppStore((s) => s.chunkingParams);
   const openrouterModel = useAppStore((s) => s.openrouterModel);
@@ -44,7 +73,9 @@ export default function PineconeSection() {
   const embeddingProvider = useAppStore((s) => s.embeddingProvider);
   const voyageModel = useAppStore((s) => s.voyageModel);
   const cohereModel = useAppStore((s) => s.cohereModel);
-  const openrouterEmbeddingModel = useAppStore((s) => s.openrouterEmbeddingModel);
+  const openrouterEmbeddingModel = useAppStore(
+    (s) => s.openrouterEmbeddingModel,
+  );
   const embeddingDimensions = useAppStore((s) => s.embeddingDimensions);
 
   const pineconeApiKey = useAppStore((s) => s.pineconeApiKey);
@@ -106,21 +137,28 @@ export default function PineconeSection() {
   const [showCreate, setShowCreate] = useState(false);
   const [newIdxName, setNewIdxName] = useState("");
   const [newIdxDim, setNewIdxDim] = useState(1024);
-  const [newIdxMetric, setNewIdxMetric] = useState<"cosine" | "euclidean" | "dotproduct">("cosine");
+  const [newIdxMetric, setNewIdxMetric] = useState<
+    "cosine" | "euclidean" | "dotproduct"
+  >("cosine");
   const [creating, setCreating] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  
+
   // Namespace creation state
   const [isCreatingNamespace, setIsCreatingNamespace] = useState(false);
-  const [showCreateChromaCollection, setShowCreateChromaCollection] = useState(false);
-  const [creatingChromaCollection, setCreatingChromaCollection] = useState(false);
+  const [showCreateChromaCollection, setShowCreateChromaCollection] =
+    useState(false);
+  const [creatingChromaCollection, setCreatingChromaCollection] =
+    useState(false);
   const [newChromaCollection, setNewChromaCollection] = useState("");
-  const [showCreateChromaDatabase, setShowCreateChromaDatabase] = useState(false);
+  const [showCreateChromaDatabase, setShowCreateChromaDatabase] =
+    useState(false);
   const [creatingChromaDatabase, setCreatingChromaDatabase] = useState(false);
   const [newChromaDatabase, setNewChromaDatabase] = useState("");
   const [showExamples, setShowExamples] = useState(false);
-  const [isListingChromaDatabases, setIsListingChromaDatabases] = useState(false);
-  const [isListingChromaCollections, setIsListingChromaCollections] = useState(false);
+  const [isListingChromaDatabases, setIsListingChromaDatabases] =
+    useState(false);
+  const [isListingChromaCollections, setIsListingChromaCollections] =
+    useState(false);
 
   // Auto-fill env key
   useEffect(() => {
@@ -161,7 +199,12 @@ export default function PineconeSection() {
     } catch {
       setPineconeIndexes([]);
     }
-  }, [pineconeApiKey, pineconeIndexName, setPineconeIndexes, setPineconeIndexName]);
+  }, [
+    pineconeApiKey,
+    pineconeIndexName,
+    setPineconeIndexes,
+    setPineconeIndexName,
+  ]);
 
   useEffect(() => {
     fetchIndexes();
@@ -174,22 +217,28 @@ export default function PineconeSection() {
 
       if (chromaMode === "cloud") {
         if (!chromaApiKey || !chromaTenant) return;
-        
+
         const res = await fetch("/api/chroma/proxy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            url: "https://api.trychroma.com/api/v2/tenants/" + encodeURIComponent(chromaTenant) + "/databases",
-            headers: { "x-chroma-token": chromaApiKey }
-          })
+            url:
+              "https://api.trychroma.com/api/v2/tenants/" +
+              encodeURIComponent(chromaTenant) +
+              "/databases",
+            headers: { "x-chroma-token": chromaApiKey },
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to list cloud databases");
-        
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to list cloud databases");
+
         const names = (json.data || []).map((db: ChromaItem) => db.name);
         setChromaDatabases(names);
         if (names.length > 0 && !chromaDatabase) {
-          setChromaDatabase(names.includes("default_database") ? "default_database" : names[0]);
+          setChromaDatabase(
+            names.includes("default_database") ? "default_database" : names[0],
+          );
         }
       } else {
         try {
@@ -199,17 +248,18 @@ export default function PineconeSection() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases`,
-              method: "GET"
-            })
+              method: "GET",
+            }),
           });
           const json = await res.json();
-          if (!res.ok || !json.success) throw new Error(json.message || "Failed to list local databases");
-          
+          if (!res.ok || !json.success)
+            throw new Error(json.message || "Failed to list local databases");
+
           const names = (json.data || []).map((db: ChromaItem) => db.name);
           setChromaDatabases(names.length > 0 ? names : ["default_database"]);
         } catch (err) {
           if (err instanceof TypeError && err.message === "Failed to fetch") {
-             throw new Error("Failed to fetch. Ensure Local Chroma is running.");
+            throw new Error("Failed to fetch. Ensure Local Chroma is running.");
           }
           setChromaDatabases(["default_database"]);
         }
@@ -221,7 +271,16 @@ export default function PineconeSection() {
     } finally {
       setIsListingChromaDatabases(false);
     }
-  }, [chromaMode, chromaApiKey, chromaTenant, chromaLocalUrl, chromaDatabase, setChromaDatabase, setChromaDatabases, setChromaError]);
+  }, [
+    chromaMode,
+    chromaApiKey,
+    chromaTenant,
+    chromaLocalUrl,
+    chromaDatabase,
+    setChromaDatabase,
+    setChromaDatabases,
+    setChromaError,
+  ]);
 
   const fetchChromaCollections = useCallback(async () => {
     if (!chromaDatabase) return;
@@ -235,12 +294,13 @@ export default function PineconeSection() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections`,
-            headers: { "x-chroma-token": chromaApiKey }
-          })
+            headers: { "x-chroma-token": chromaApiKey },
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to list cloud collections");
-        
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to list cloud collections");
+
         const names = (json.data || []).map((c: ChromaItem) => c.name);
         setChromaCollections(names);
         if (names.length > 0 && !chromaCollectionName) {
@@ -253,12 +313,13 @@ export default function PineconeSection() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections`,
-            method: "GET"
-          })
+            method: "GET",
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to list local collections");
-        
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to list local collections");
+
         const names = (json.data || []).map((c: ChromaItem) => c.name);
         setChromaCollections(names);
         if (names.length > 0 && !chromaCollectionName) {
@@ -267,20 +328,43 @@ export default function PineconeSection() {
       }
     } catch (err) {
       setChromaCollections([]);
-      if (err instanceof TypeError && err.message === "Failed to fetch" && chromaMode === "local") {
-        setChromaError("CORS Error: Local Chroma is blocking the request. See Sidebar for help enabling CORS.");
+      if (
+        err instanceof TypeError &&
+        err.message === "Failed to fetch" &&
+        chromaMode === "local"
+      ) {
+        setChromaError(
+          "CORS Error: Local Chroma is blocking the request. See Sidebar for help enabling CORS.",
+        );
       } else {
         setChromaError(err instanceof Error ? err.message : String(err));
       }
     } finally {
       setIsListingChromaCollections(false);
     }
-  }, [chromaMode, chromaTenant, chromaDatabase, chromaApiKey, chromaLocalUrl, chromaCollectionName, setChromaCollectionName, setChromaCollections, setChromaError]);
+  }, [
+    chromaMode,
+    chromaTenant,
+    chromaDatabase,
+    chromaApiKey,
+    chromaLocalUrl,
+    chromaCollectionName,
+    setChromaCollectionName,
+    setChromaCollections,
+    setChromaError,
+  ]);
 
   useEffect(() => {
     if (selectedDb !== "chroma") return;
     fetchChromaDatabases();
-  }, [selectedDb, chromaMode, chromaLocalUrl, chromaApiKey, chromaTenant, fetchChromaDatabases]);
+  }, [
+    selectedDb,
+    chromaMode,
+    chromaLocalUrl,
+    chromaApiKey,
+    chromaTenant,
+    fetchChromaDatabases,
+  ]);
 
   useEffect(() => {
     if (selectedDb !== "chroma" || !chromaDatabase) return;
@@ -297,26 +381,42 @@ export default function PineconeSection() {
     (async () => {
       try {
         const { listNamespaces } = await import("@/app/lib/pinecone-client");
-        const namespaces = await listNamespaces(pineconeApiKey, pineconeIndexName);
+        const namespaces = await listNamespaces(
+          pineconeApiKey,
+          pineconeIndexName,
+        );
         if (!active) return;
         setPineconeNamespaces(namespaces);
         // Default logic: if we have namespaces, pick first one (often just "")
         // Otherwise prompt to create.
-        if (namespaces.length > 0 && !pineconeNamespace && !isCreatingNamespace) {
-           // If we have an empty string namespace (default), pick it
-           if (namespaces.includes("")) setPineconeNamespace("");
-           else setPineconeNamespace(namespaces[0]);
-           setIsCreatingNamespace(false);
+        if (
+          namespaces.length > 0 &&
+          !pineconeNamespace &&
+          !isCreatingNamespace
+        ) {
+          // If we have an empty string namespace (default), pick it
+          if (namespaces.includes("")) setPineconeNamespace("");
+          else setPineconeNamespace(namespaces[0]);
+          setIsCreatingNamespace(false);
         } else if (namespaces.length === 0) {
-           setIsCreatingNamespace(true);
-           setPineconeNamespace("");
+          setIsCreatingNamespace(true);
+          setPineconeNamespace("");
         }
       } catch (err) {
         console.error("Failed to list namespaces:", err);
       }
     })();
-    return () => { active = false; };
-  }, [pineconeApiKey, pineconeIndexName, setPineconeNamespaces, setPineconeNamespace, isCreatingNamespace, pineconeNamespace]);
+    return () => {
+      active = false;
+    };
+  }, [
+    pineconeApiKey,
+    pineconeIndexName,
+    setPineconeNamespaces,
+    setPineconeNamespace,
+    isCreatingNamespace,
+    pineconeNamespace,
+  ]);
 
   // Create new index
   const handleCreateIndex = useCallback(async () => {
@@ -326,7 +426,13 @@ export default function PineconeSection() {
     try {
       const { createIndex } = await import("@/app/lib/pinecone-client");
       const env = PINECONE_ENVIRONMENTS.find((e) => e.key === pineconeEnvKey)!;
-      await createIndex(pineconeApiKey, newIdxName.trim(), newIdxDim, newIdxMetric, env);
+      await createIndex(
+        pineconeApiKey,
+        newIdxName.trim(),
+        newIdxDim,
+        newIdxMetric,
+        env,
+      );
       // Refresh list
       await fetchIndexes();
       setPineconeIndexName(newIdxName.trim());
@@ -338,15 +444,22 @@ export default function PineconeSection() {
       setCreating(false);
     }
   }, [
-    newIdxName, newIdxDim, newIdxMetric, pineconeApiKey, pineconeEnvKey,
-    fetchIndexes, setPineconeError, setPineconeIndexName,
+    newIdxName,
+    newIdxDim,
+    newIdxMetric,
+    pineconeApiKey,
+    pineconeEnvKey,
+    fetchIndexes,
+    setPineconeError,
+    setPineconeIndexName,
   ]);
 
   // Upload chunks
   const handleUpload = useCallback(async () => {
     // If we have embeddings, we don't need voyageApiKey. If not, we do.
     const needsVoyageKey = !hasEmbeddings;
-    if (!pineconeApiKey || !pineconeIndexName || editedChunks.length === 0) return;
+    if (!pineconeApiKey || !pineconeIndexName || editedChunks.length === 0)
+      return;
     if (needsVoyageKey && !voyageApiKey) return;
 
     setIsUploading(true);
@@ -378,10 +491,20 @@ export default function PineconeSection() {
       setIsUploading(false);
     }
   }, [
-    pineconeApiKey, voyageApiKey, voyageModel, pineconeIndexName,
-    editedChunks, parsedFilename, setIsUploading, setPineconeError,
-    setPineconeSuccess, hasEmbeddings, embeddingsData,
-    pineconeNamespace, chunkSourceFiles, pineconeFieldMapping
+    pineconeApiKey,
+    voyageApiKey,
+    voyageModel,
+    pineconeIndexName,
+    editedChunks,
+    parsedFilename,
+    setIsUploading,
+    setPineconeError,
+    setPineconeSuccess,
+    hasEmbeddings,
+    embeddingsData,
+    pineconeNamespace,
+    chunkSourceFiles,
+    pineconeFieldMapping,
   ]);
 
   const [generatingScript, setGeneratingScript] = useState(false);
@@ -393,7 +516,7 @@ export default function PineconeSection() {
     setChromaSuccess(null);
     try {
       const name = newChromaCollection.trim();
-      
+
       if (chromaMode === "cloud") {
         const res = await fetch("/api/chroma/proxy", {
           method: "POST",
@@ -402,11 +525,16 @@ export default function PineconeSection() {
             url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections`,
             method: "POST",
             headers: { "x-chroma-token": chromaApiKey },
-            body: { name, metadata: { "created_by": "chunkcanvas" }, get_or_create: true }
-          })
+            body: {
+              name,
+              metadata: { created_by: "chunkcanvas" },
+              get_or_create: true,
+            },
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to create cloud collection");
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to create cloud collection");
       } else {
         const base = chromaLocalUrl.trim() || "http://localhost:8000";
         const res = await fetch("/api/chroma/proxy", {
@@ -415,11 +543,16 @@ export default function PineconeSection() {
           body: JSON.stringify({
             url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections`,
             method: "POST",
-            body: { name, metadata: { "created_by": "chunkcanvas" }, get_or_create: true }
-          })
+            body: {
+              name,
+              metadata: { created_by: "chunkcanvas" },
+              get_or_create: true,
+            },
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to create local collection");
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to create local collection");
       }
 
       setChromaCollectionName(name);
@@ -431,7 +564,18 @@ export default function PineconeSection() {
     } finally {
       setCreatingChromaCollection(false);
     }
-  }, [newChromaCollection, chromaMode, chromaTenant, chromaDatabase, chromaApiKey, chromaLocalUrl, setChromaCollectionName, setChromaError, setChromaSuccess, fetchChromaCollections]);
+  }, [
+    newChromaCollection,
+    chromaMode,
+    chromaTenant,
+    chromaDatabase,
+    chromaApiKey,
+    chromaLocalUrl,
+    setChromaCollectionName,
+    setChromaError,
+    setChromaSuccess,
+    fetchChromaCollections,
+  ]);
 
   const handleUploadToChroma = useCallback(async () => {
     if (!chromaCollectionName || editedChunks.length === 0) return;
@@ -456,11 +600,13 @@ export default function PineconeSection() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections`,
-            headers: { "x-chroma-token": chromaApiKey }
-          })
+            headers: { "x-chroma-token": chromaApiKey },
+          }),
         });
         const listJson = await listRes.json();
-        const collectionId = (listJson.data || []).find((c: ChromaItem) => c.name === chromaCollectionName)?.id;
+        const collectionId = (listJson.data || []).find(
+          (c: ChromaItem) => c.name === chromaCollectionName,
+        )?.id;
         if (!collectionId) throw new Error("Could not find collection ID");
 
         const res = await fetch("/api/chroma/proxy", {
@@ -470,27 +616,36 @@ export default function PineconeSection() {
             url: `https://api.trychroma.com/api/v2/tenants/${encodeURIComponent(chromaTenant)}/databases/${encodeURIComponent(chromaDatabase)}/collections/${collectionId}/upsert`,
             method: "POST",
             headers: { "x-chroma-token": chromaApiKey },
-            body: { ids, documents: editedChunks, metadatas, embeddings: embeddingsData }
-          })
+            body: {
+              ids,
+              documents: editedChunks,
+              metadatas,
+              embeddings: embeddingsData,
+            },
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to upload to cloud");
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to upload to cloud");
       } else {
         const base = chromaLocalUrl.trim() || "http://localhost:8000";
         const cleanBase = base.replace(/\/+$/, "");
-        
+
         // 1. Get collection ID
         const listRes = await fetch("/api/chroma/proxy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: `${cleanBase}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections`,
-            method: "GET"
-          })
+            method: "GET",
+          }),
         });
         const listJson = await listRes.json();
-        const collectionId = (listJson.data || []).find((c: ChromaItem) => c.name === chromaCollectionName)?.id;
-        if (!collectionId) throw new Error("Could not find local collection ID");
+        const collectionId = (listJson.data || []).find(
+          (c: ChromaItem) => c.name === chromaCollectionName,
+        )?.id;
+        if (!collectionId)
+          throw new Error("Could not find local collection ID");
 
         // 2. Upsert
         const res = await fetch("/api/chroma/proxy", {
@@ -499,19 +654,31 @@ export default function PineconeSection() {
           body: JSON.stringify({
             url: `${cleanBase}/api/v2/tenants/default_tenant/databases/${encodeURIComponent(chromaDatabase)}/collections/${collectionId}/upsert`,
             method: "POST",
-            body: { ids, documents: editedChunks, metadatas, embeddings: embeddingsData }
-          })
+            body: {
+              ids,
+              documents: editedChunks,
+              metadatas,
+              embeddings: embeddingsData,
+            },
+          }),
         });
         const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || "Failed to upload to local Chroma");
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Failed to upload to local Chroma");
       }
 
       setChromaSuccess(
         `Chunks successfully uploaded to Chroma collection "${chromaCollectionName}" (${chromaMode}).`,
       );
     } catch (err) {
-      if (err instanceof TypeError && err.message === "Failed to fetch" && chromaMode === "local") {
-        setChromaError("CORS Error: Local Chroma is blocking the request. See Sidebar for help enabling CORS.");
+      if (
+        err instanceof TypeError &&
+        err.message === "Failed to fetch" &&
+        chromaMode === "local"
+      ) {
+        setChromaError(
+          "CORS Error: Local Chroma is blocking the request. See Sidebar for help enabling CORS.",
+        );
       } else {
         setChromaError(err instanceof Error ? err.message : String(err));
       }
@@ -538,12 +705,15 @@ export default function PineconeSection() {
   const handleGenerateScript = useCallback(async () => {
     setGeneratingScript(true);
     try {
-      const { generatePipelineScript } = await import("@/app/lib/script-generator");
+      const { generatePipelineScript } =
+        await import("@/app/lib/script-generator");
       const { downloadZip } = await import("@/app/lib/downloads");
       const { PINECONE_ENVIRONMENTS } = await import("@/app/lib/constants");
 
       const env = PINECONE_ENVIRONMENTS.find((e) => e.key === pineconeEnvKey);
-      const isSpreadsheet = pipeline === PIPELINE.EXCEL_SPREADSHEET || pipeline === PIPELINE.CSV_SPREADSHEET;
+      const isSpreadsheet =
+        pipeline === PIPELINE.EXCEL_SPREADSHEET ||
+        pipeline === PIPELINE.CSV_SPREADSHEET;
 
       const config: ScriptConfig = {
         pipeline,
@@ -566,14 +736,29 @@ export default function PineconeSection() {
 
       const files = generatePipelineScript("pinecone", config);
       const stem = parsedFilename.replace(/\.[^.]+$/, "") || "document";
-      await downloadZip(files as unknown as Record<string, string>, `${stem}_pinecone_pipeline.zip`);
+      await downloadZip(
+        files as unknown as Record<string, string>,
+        `${stem}_pinecone_pipeline.zip`,
+      );
     } finally {
       setGeneratingScript(false);
     }
   }, [
-    pipeline, chunkingParams, parsedFilename, openrouterModel, openrouterPrompt,
-    pdfEngine, excelColumn, excelSheet, embeddingProvider, voyageModel, cohereModel,
-    openrouterEmbeddingModel, embeddingDimensions, pineconeIndexName, pineconeEnvKey,
+    pipeline,
+    chunkingParams,
+    parsedFilename,
+    openrouterModel,
+    openrouterPrompt,
+    pdfEngine,
+    excelColumn,
+    excelSheet,
+    embeddingProvider,
+    voyageModel,
+    cohereModel,
+    openrouterEmbeddingModel,
+    embeddingDimensions,
+    pineconeIndexName,
+    pineconeEnvKey,
   ]);
 
   if (editedChunks.length === 0) return null;
@@ -616,76 +801,80 @@ export default function PineconeSection() {
           }
         />
 
-      {selectedDb === "pinecone" && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-          {/* API Keys */}
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gunmetal mb-1">
-                Pinecone API Key
-              </label>
-              <input
-                type="password"
-                value={pineconeApiKey}
-                onChange={(e) => setPineconeApiKey(e.target.value)}
-                placeholder="pcsk_..."
-                className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-              />
-            </div>
-          </div>
-
-          {!pineconeApiKey && (
-            <p className="text-xs text-silver-dark">
-              Enter a Pinecone API key to see available environments and indexes.
-            </p>
-          )}
-
-          {pineconeApiKey && (
-            <>
-              {/* Environment */}
+        {selectedDb === "pinecone" && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+            {/* API Keys */}
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gunmetal mb-2">
-                  Pinecone Environment
+                <label className="block text-sm font-medium text-gunmetal mb-1">
+                  Pinecone API Key
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {PINECONE_ENVIRONMENTS.map((env) => {
-                    const isSelected = pineconeEnvKey === env.key;
-                    return (
-                      <Tooltip key={env.key} content={env.label}>
-                        <button
-                          type="button"
-                          onClick={() => setPineconeEnvKey(env.key)}
-                          className={`
+                <input
+                  type="password"
+                  value={pineconeApiKey}
+                  onChange={(e) => setPineconeApiKey(e.target.value)}
+                  placeholder="pcsk_..."
+                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                />
+              </div>
+            </div>
+
+            {!pineconeApiKey && (
+              <p className="text-xs text-silver-dark">
+                Enter a Pinecone API key to see available environments and
+                indexes.
+              </p>
+            )}
+
+            {pineconeApiKey && (
+              <>
+                {/* Environment */}
+                <div>
+                  <label className="block text-sm font-medium text-gunmetal mb-2">
+                    Pinecone Environment
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {PINECONE_ENVIRONMENTS.map((env) => {
+                      const isSelected = pineconeEnvKey === env.key;
+                      return (
+                        <Tooltip key={env.key} content={env.label}>
+                          <button
+                            type="button"
+                            onClick={() => setPineconeEnvKey(env.key)}
+                            className={`
                             w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
-                            ${isSelected
-                              ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                              : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
+                            ${
+                              isSelected
+                                ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                                : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
                             }
                           `}
-                        >
-                          <span
-                            className={`
+                          >
+                            <span
+                              className={`
                               flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
                               ${isSelected ? "border-sandy" : "border-silver"}
                             `}
-                          >
-                            {isSelected && (
-                              <span className="h-1 w-1 rounded-full bg-sandy" />
-                            )}
-                          </span>
-                          <span className={`text-[11px] truncate max-w-[100px] ${isSelected ? "text-gunmetal font-medium" : "text-gunmetal-light"}`}>
-                            {env.label}
-                          </span>
-                        </button>
-                      </Tooltip>
-                    );
-                  })}
+                            >
+                              {isSelected && (
+                                <span className="h-1 w-1 rounded-full bg-sandy" />
+                              )}
+                            </span>
+                            <span
+                              className={`text-[11px] truncate max-w-[100px] ${isSelected ? "text-gunmetal font-medium" : "text-gunmetal-light"}`}
+                            >
+                              {env.label}
+                            </span>
+                          </button>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-4 pt-2">
-                 {/* Index Selection & Creation */}
-                 <div className="space-y-4">
+                <div className="space-y-4 pt-2">
+                  {/* Index Selection & Creation */}
+                  <div className="space-y-4">
                     {/* Select Index */}
                     <div>
                       <label className="block text-sm font-medium text-gunmetal mb-2">
@@ -695,16 +884,40 @@ export default function PineconeSection() {
                       {/* Create Index — collapsible */}
                       <details
                         open={showCreate}
-                        onToggle={(e) => setShowCreate((e.target as HTMLDetailsElement).open)}
+                        onToggle={(e) =>
+                          setShowCreate((e.target as HTMLDetailsElement).open)
+                        }
                         className="group rounded-lg border border-silver-light overflow-hidden mb-4"
                       >
                         <summary className="cursor-pointer  list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
-                          <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          <svg
+                            className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M9 5l7 7-7 7"
+                            />
                           </svg>
-                          <span className="text-sm font-medium text-gunmetal">Create New Index</span>
-                          <svg className="h-4 w-4 text-sandy ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          <span className="text-sm font-medium text-gunmetal">
+                            Create New Index
+                          </span>
+                          <svg
+                            className="h-4 w-4 text-sandy ml-auto"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M12 4v16m8-8H4"
+                            />
                           </svg>
                         </summary>
                         <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
@@ -723,7 +936,9 @@ export default function PineconeSection() {
                               <input
                                 type="number"
                                 value={newIdxDim}
-                                onChange={(e) => setNewIdxDim(Number(e.target.value))}
+                                onChange={(e) =>
+                                  setNewIdxDim(Number(e.target.value))
+                                }
                                 className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
                               />
                             </div>
@@ -732,16 +947,19 @@ export default function PineconeSection() {
                                 Metric
                               </label>
                               <div className="flex gap-1.5">
-                                {(["cosine", "euclidean", "dotproduct"] as const).map((m) => (
+                                {(
+                                  ["cosine", "euclidean", "dotproduct"] as const
+                                ).map((m) => (
                                   <button
                                     key={m}
                                     type="button"
                                     onClick={() => setNewIdxMetric(m)}
                                     className={`
                                       flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-all cursor-pointer
-                                      ${newIdxMetric === m
-                                        ? "border-sandy bg-sandy/10 text-sandy-dark"
-                                        : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50"
+                                      ${
+                                        newIdxMetric === m
+                                          ? "border-sandy bg-sandy/10 text-sandy-dark"
+                                          : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50"
                                       }
                                     `}
                                   >
@@ -758,16 +976,41 @@ export default function PineconeSection() {
                           >
                             {creating ? (
                               <>
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                <svg
+                                  className="h-4 w-4 animate-spin"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                  />
                                 </svg>
                                 Creating…
                               </>
                             ) : (
                               <>
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                <svg
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M12 4v16m8-8H4"
+                                  />
                                 </svg>
                                 Create Index
                               </>
@@ -794,9 +1037,10 @@ export default function PineconeSection() {
                                 onClick={() => setPineconeIndexName(idx)}
                                 className={`
                                   w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
-                                  ${isSelected
-                                    ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                                    : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
+                                  ${
+                                    isSelected
+                                      ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                                      : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
                                   }
                                 `}
                               >
@@ -810,7 +1054,9 @@ export default function PineconeSection() {
                                     <span className="h-1 w-1 rounded-full bg-sandy" />
                                   )}
                                 </span>
-                                <span className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}>
+                                <span
+                                  className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}
+                                >
                                   {idx}
                                 </span>
                               </button>
@@ -819,624 +1065,856 @@ export default function PineconeSection() {
                         </div>
                       )}
                     </div>
-                 </div>
-              </div>
+                  </div>
+                </div>
 
-              {/* Namespace Selection */}
-              {pineconeIndexName && (
+                {/* Namespace Selection */}
+                {pineconeIndexName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gunmetal mb-2">
+                      Select Namespace
+                    </label>
+
+                    {/* Create Namespace — collapsible */}
+                    <div className="mb-4">
+                      <details
+                        open={isCreatingNamespace}
+                        onToggle={(e) =>
+                          setIsCreatingNamespace(
+                            (e.target as HTMLDetailsElement).open,
+                          )
+                        }
+                        className="group rounded-lg border border-silver-light overflow-hidden"
+                      >
+                        <summary className="cursor-pointer  list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
+                          <svg
+                            className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                          <span className="text-sm font-medium text-gunmetal">
+                            Create / Enter New Namespace
+                          </span>
+                          <svg
+                            className="h-4 w-4 text-sandy ml-auto"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                        </summary>
+                        <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
+                          <input
+                            type="text"
+                            value={pineconeNamespace}
+                            onChange={(e) =>
+                              setPineconeNamespace(e.target.value)
+                            }
+                            placeholder="Namespace name (e.g., project-x)"
+                            className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none font-mono"
+                          />
+                          <p className="text-[10px] text-silver-dark mt-1">
+                            Data will be uploaded to this namespace. If it
+                            doesn&apos;t exist, it will be created implicitly.
+                          </p>
+                        </div>
+                      </details>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {pineconeNamespaces.map((ns) => {
+                        const isSelected =
+                          !isCreatingNamespace && pineconeNamespace === ns;
+                        const displayNs = ns === "" ? "(Default)" : ns;
+                        return (
+                          <button
+                            key={ns}
+                            type="button"
+                            onClick={() => {
+                              setPineconeNamespace(ns);
+                              setIsCreatingNamespace(false);
+                            }}
+                            className={`
+                            w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
+                            ${
+                              isSelected
+                                ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                                : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
+                            }
+                          `}
+                          >
+                            <span
+                              className={`
+                              flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
+                              ${isSelected ? "border-sandy" : "border-silver"}
+                            `}
+                            >
+                              {isSelected && (
+                                <span className="h-1 w-1 rounded-full bg-sandy" />
+                              )}
+                            </span>
+                            <span
+                              className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}
+                            >
+                              {displayNs}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Field Name Editor ── */}
                 <div>
                   <label className="block text-sm font-medium text-gunmetal mb-2">
-                    Select Namespace
+                    Upload Field Names
                   </label>
+                  <details className="group rounded-lg border border-silver-light overflow-hidden">
+                    <summary className="cursor-pointer  list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
+                      <svg
+                        className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gunmetal">
+                        Configure Field Names
+                      </span>
+                      <span className="ml-auto text-[10px] text-silver-dark">
+                        Customize vector field names
+                      </span>
+                    </summary>
+                    <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
+                      <p className="text-[10px] text-silver-dark mb-2">
+                        Edit the field names used when uploading vectors to
+                        Pinecone.
+                      </p>
 
-                  {/* Create Namespace — collapsible */}
-                  <div className="mb-4">
-                    <details
-                      open={isCreatingNamespace}
-                      onToggle={(e) => setIsCreatingNamespace((e.target as HTMLDetailsElement).open)}
-                      className="group rounded-lg border border-silver-light overflow-hidden"
-                    >
-                      <summary className="cursor-pointer  list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
-                        <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      {/* ID Prefix */}
+                      <div>
+                        <label className="block text-xs font-medium text-gunmetal-light mb-1">
+                          Vector ID Prefix
+                        </label>
+                        <input
+                          type="text"
+                          value={pineconeFieldMapping.idPrefix}
+                          onChange={(e) =>
+                            setPineconeFieldMapping({
+                              idPrefix: e.target.value,
+                            })
+                          }
+                          placeholder={parsedFilename || "filename"}
+                          className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                        />
+                        <p className="text-[10px] text-silver-dark mt-0.5">
+                          ID format:{" "}
+                          <code className="font-mono text-gunmetal-light">{`{prefix}_chunk_{index}`}</code>
+                          {" — "}leave empty to use source filename
+                        </p>
+                      </div>
+
+                      {/* Text Field */}
+                      <div>
+                        <label className="block text-xs font-medium text-gunmetal-light mb-1">
+                          Metadata: Text Field Name
+                        </label>
+                        <input
+                          type="text"
+                          value={pineconeFieldMapping.textField}
+                          onChange={(e) =>
+                            setPineconeFieldMapping({
+                              textField: e.target.value,
+                            })
+                          }
+                          placeholder="text"
+                          className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                        />
+                      </div>
+
+                      {/* Filename Field */}
+                      <div>
+                        <label className="block text-xs font-medium text-gunmetal-light mb-1">
+                          Metadata: Filename Field Name
+                        </label>
+                        <input
+                          type="text"
+                          value={pineconeFieldMapping.filenameField}
+                          onChange={(e) =>
+                            setPineconeFieldMapping({
+                              filenameField: e.target.value,
+                            })
+                          }
+                          placeholder="filename"
+                          className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                        />
+                      </div>
+
+                      {/* Preview */}
+                      <div className="rounded-lg bg-slate-900 p-3 text-[10px] font-mono text-slate-300 space-y-1">
+                        <p className="text-slate-500">
+                          {"// Upload preview per vector:"}
+                        </p>
+                        <p>{`{`}</p>
+                        <p className="pl-3">{`id: "${pineconeFieldMapping.idPrefix || parsedFilename || "file"}_chunk_0",`}</p>
+                        <p className="pl-3">{`values: [0.123, -0.456, ...],`}</p>
+                        <p className="pl-3">{`metadata: {`}</p>
+                        <p className="pl-6">{`${pineconeFieldMapping.filenameField || "filename"}: "example.pdf",`}</p>
+                        <p className="pl-6">{`${pineconeFieldMapping.textField || "text"}: "chunk content..."`}</p>
+                        <p className="pl-3">{`}`}</p>
+                        <p>{`}`}</p>
+                        <p className="text-slate-500">{`// namespace: "${pineconeNamespace || "(default)"}"`}</p>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+
+                {/* Embeddings Requirement Check */}
+                {!hasEmbeddings && (
+                  <StatusMessage type="warning" label="Note:">
+                    You must generate embeddings in the Embeddings step above
+                    before uploading.
+                  </StatusMessage>
+                )}
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Upload Button */}
+                  <button
+                    onClick={handleUpload}
+                    disabled={
+                      !pineconeIndexName || !hasEmbeddings || isUploading
+                    }
+                    className="flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  >
+                    {isUploading ? (
+                      <>
+                        <svg
+                          className="h-4 w-4 animate-spin"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
                         </svg>
-                        <span className="text-sm font-medium text-gunmetal">Create / Enter New Namespace</span>
-                        <svg className="h-4 w-4 text-sandy ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                        Uploading… {uploadProgress}%
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        Upload Chunks to Pinecone
+                      </>
+                    )}
+                  </button>
+
+                  {/* Script download */}
+                  <ActionRow
+                    onGenerateScript={handleGenerateScript}
+                    scriptLabel="Generate Script"
+                    isGeneratingScript={generatingScript}
+                    scriptOnly={true}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Status messages */}
+            {pineconeError && (
+              <StatusMessage type="error" label="Error:">
+                {pineconeError}
+              </StatusMessage>
+            )}
+            {pineconeSuccess && (
+              <StatusMessage type="success" label="Success:">
+                {pineconeSuccess}
+              </StatusMessage>
+            )}
+          </div>
+        )}
+
+        {selectedDb === "chroma" && (
+          <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(
+                [
+                  { key: "local", label: "Local Chroma" },
+                  { key: "cloud", label: "Chroma Cloud" },
+                ] as const
+              ).map((mode) => {
+                const selected = chromaMode === mode.key;
+                const isLocalDisabled = mode.key === "local" && !isLocal;
+                return (
+                  <button
+                    key={mode.key}
+                    type="button"
+                    onClick={() => {
+                      if (!isLocalDisabled) setChromaMode(mode.key);
+                    }}
+                    disabled={isLocalDisabled}
+                    className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                      isLocalDisabled
+                        ? "opacity-40 cursor-not-allowed bg-card border-silver-light text-silver-dark grayscale"
+                        : selected
+                          ? "border-sandy bg-sandy/10 text-gunmetal cursor-pointer"
+                          : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50 cursor-pointer"
+                    }`}
+                    title={
+                      isLocalDisabled
+                        ? "Requires local setup — clone the repo to use local Chroma"
+                        : undefined
+                    }
+                  >
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {chromaMode === "local" && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gunmetal">
+                    Local Chroma URL
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => fetchChromaDatabases()}
+                    disabled={
+                      isListingChromaDatabases || !chromaLocalUrl.trim()
+                    }
+                    className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isListingChromaDatabases ? "Refreshing..." : "Refresh"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={chromaLocalUrl}
+                  onChange={(e) => setChromaLocalUrl(e.target.value)}
+                  placeholder="http://localhost:8030"
+                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                />
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowExamples((v) => !v)}
+                    className="text-[10px] text-sandy hover:underline cursor-pointer"
+                  >
+                    {showExamples
+                      ? "Hide launch command"
+                      : "Show launch command"}
+                  </button>
+                  {showExamples && (
+                    <div className="mt-2 space-y-2">
+                      <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">
+                        Docker Compose
+                      </p>
+                      <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                        docker compose up chroma -d
+                      </div>
+                      <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">
+                        Standalone
+                      </p>
+                      <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
+                        chroma run --host localhost --port 8030 --path
+                        ./backend/my_chroma_data
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {chromaMode === "cloud" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gunmetal mb-1">
+                      Chroma API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={chromaApiKey}
+                      onChange={(e) => setChromaApiKey(e.target.value)}
+                      placeholder="ck_..."
+                      className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gunmetal mb-1">
+                      Tenant ID
+                    </label>
+                    <input
+                      type="text"
+                      value={chromaTenant}
+                      onChange={(e) => setChromaTenant(e.target.value)}
+                      placeholder="tenant-id"
+                      className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                    />
+                    <p className="text-[10px] text-silver-dark mt-0.5">
+                      Required by Chroma Cloud to scope your data. Found in your
+                      Chroma Cloud dashboard.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(chromaMode === "local" && chromaLocalUrl) ||
+            (chromaMode === "cloud" && chromaApiKey) ? (
+              <>
+                {/* Database Selection & Creation */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gunmetal">
+                      Select Database
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => fetchChromaDatabases()}
+                      disabled={isListingChromaDatabases}
+                      className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {isListingChromaDatabases ? "Refreshing..." : "Refresh"}
+                    </button>
+                  </div>
+
+                  {/* Create Database — collapsible (local only; Chroma Cloud manages databases via dashboard) */}
+                  {chromaMode === "local" ? (
+                    <details
+                      open={showCreateChromaDatabase}
+                      onToggle={(e) =>
+                        setShowCreateChromaDatabase(
+                          (e.target as HTMLDetailsElement).open,
+                        )
+                      }
+                      className="group rounded-lg border border-silver-light overflow-hidden mb-4"
+                    >
+                      <summary className="cursor-pointer list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
+                        <svg
+                          className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                        <span className="text-sm font-medium text-gunmetal">
+                          Create New Database
+                        </span>
+                        <svg
+                          className="h-4 w-4 text-sandy ml-auto"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 4v16m8-8H4"
+                          />
                         </svg>
                       </summary>
                       <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
                         <input
                           type="text"
-                          value={pineconeNamespace}
-                          onChange={(e) => setPineconeNamespace(e.target.value)}
-                          placeholder="Namespace name (e.g., project-x)"
-                          className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none font-mono"
+                          value={newChromaDatabase}
+                          onChange={(e) => setNewChromaDatabase(e.target.value)}
+                          placeholder="my_database"
+                          className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
                         />
-                        <p className="text-[10px] text-silver-dark mt-1">
-                          Data will be uploaded to this namespace. If it doesn&apos;t exist, it will be created implicitly.
-                        </p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!newChromaDatabase.trim()) return;
+                            setCreatingChromaDatabase(true);
+                            setChromaError(null);
+                            setChromaSuccess(null);
+                            try {
+                              const base =
+                                chromaLocalUrl.trim() ||
+                                "http://localhost:8000";
+                              const res = await fetch("/api/chroma/proxy", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases`,
+                                  method: "POST",
+                                  body: { name: newChromaDatabase.trim() },
+                                }),
+                              });
+                              const json = await res.json();
+                              if (!res.ok || !json.success) {
+                                throw new Error(
+                                  json.message || "Failed to create database",
+                                );
+                              }
+                              setChromaDatabase(newChromaDatabase.trim());
+                              setNewChromaDatabase("");
+                              setShowCreateChromaDatabase(false);
+                              setChromaSuccess(
+                                `Database "${newChromaDatabase.trim()}" created.`,
+                              );
+                              await fetchChromaDatabases();
+                            } catch (err) {
+                              setChromaError(
+                                err instanceof Error
+                                  ? err.message
+                                  : String(err),
+                              );
+                            } finally {
+                              setCreatingChromaDatabase(false);
+                            }
+                          }}
+                          disabled={
+                            !newChromaDatabase.trim() || creatingChromaDatabase
+                          }
+                          className="w-full rounded-lg bg-sandy px-3 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                        >
+                          {creatingChromaDatabase
+                            ? "Creating…"
+                            : "Create Database"}
+                        </button>
                       </div>
                     </details>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {pineconeNamespaces.map((ns) => {
-                      const isSelected = !isCreatingNamespace && pineconeNamespace === ns;
-                      const displayNs = ns === "" ? "(Default)" : ns;
-                      return (
-                        <button
-                          key={ns}
-                          type="button"
-                          onClick={() => {
-                            setPineconeNamespace(ns);
-                            setIsCreatingNamespace(false);
-                          }}
-                          className={`
-                            w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
-                            ${isSelected
-                              ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                              : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
-                            }
-                          `}
-                        >
-                          <span
-                            className={`
-                              flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
-                              ${isSelected ? "border-sandy" : "border-silver"}
-                            `}
-                          >
-                            {isSelected && (
-                              <span className="h-1 w-1 rounded-full bg-sandy" />
-                            )}
-                          </span>
-                          <span className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}>
-                            {displayNs}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Field Name Editor ── */}
-              <div>
-                <label className="block text-sm font-medium text-gunmetal mb-2">
-                  Upload Field Names
-                </label>
-                <details className="group rounded-lg border border-silver-light overflow-hidden">
-                  <summary className="cursor-pointer  list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
-                    <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                    <span className="text-sm font-medium text-gunmetal">Configure Field Names</span>
-                    <span className="ml-auto text-[10px] text-silver-dark">Customize vector field names</span>
-                  </summary>
-                  <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
-                    <p className="text-[10px] text-silver-dark mb-2">
-                      Edit the field names used when uploading vectors to Pinecone.
+                  ) : (
+                    <p className="text-[10px] text-silver-dark mb-4">
+                      Chroma Cloud databases are managed via the{" "}
+                      <a
+                        href="https://www.trychroma.com/login"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sandy hover:underline"
+                      >
+                        Chroma Cloud dashboard
+                      </a>
+                      . The API key does not have permission to create
+                      databases.
                     </p>
+                  )}
 
-                    {/* ID Prefix */}
-                    <div>
-                      <label className="block text-xs font-medium text-gunmetal-light mb-1">
-                        Vector ID Prefix
-                      </label>
-                      <input
-                        type="text"
-                        value={pineconeFieldMapping.idPrefix}
-                        onChange={(e) => setPineconeFieldMapping({ idPrefix: e.target.value })}
-                        placeholder={parsedFilename || "filename"}
-                        className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                      />
-                      <p className="text-[10px] text-silver-dark mt-0.5">
-                        ID format: <code className="font-mono text-gunmetal-light">{`{prefix}_chunk_{index}`}</code>
-                        {" — "}leave empty to use source filename
+                  {chromaDatabases.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-silver p-4 text-center">
+                      <p className="text-xs text-silver-dark">
+                        No databases found
+                        {chromaMode === "local" ? " — create one below." : "."}
                       </p>
                     </div>
-
-                    {/* Text Field */}
-                    <div>
-                      <label className="block text-xs font-medium text-gunmetal-light mb-1">
-                        Metadata: Text Field Name
-                      </label>
-                      <input
-                        type="text"
-                        value={pineconeFieldMapping.textField}
-                        onChange={(e) => setPineconeFieldMapping({ textField: e.target.value })}
-                        placeholder="text"
-                        className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                      />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {chromaDatabases.map((dbName) => {
+                        const isSelected = chromaDatabase === dbName;
+                        return (
+                          <button
+                            key={dbName}
+                            type="button"
+                            onClick={() => {
+                              setChromaDatabase(dbName);
+                              // Reset collection when database changes
+                              setChromaCollectionName("");
+                              setChromaCollections([]);
+                            }}
+                            className={`
+                        w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
+                        ${
+                          isSelected
+                            ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                            : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
+                        }
+                      `}
+                          >
+                            <span
+                              className={`
+                          flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
+                          ${isSelected ? "border-sandy" : "border-silver"}
+                        `}
+                            >
+                              {isSelected && (
+                                <span className="h-1 w-1 rounded-full bg-sandy" />
+                              )}
+                            </span>
+                            <span
+                              className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}
+                            >
+                              {dbName}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
+                  )}
+                </div>
 
-                    {/* Filename Field */}
-                    <div>
-                      <label className="block text-xs font-medium text-gunmetal-light mb-1">
-                        Metadata: Filename Field Name
-                      </label>
-                      <input
-                        type="text"
-                        value={pineconeFieldMapping.filenameField}
-                        onChange={(e) => setPineconeFieldMapping({ filenameField: e.target.value })}
-                        placeholder="filename"
-                        className="w-full rounded-lg border border-silver px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                      />
-                    </div>
-
-                    {/* Preview */}
-                    <div className="rounded-lg bg-slate-900 p-3 text-[10px] font-mono text-slate-300 space-y-1">
-                      <p className="text-slate-500">{"// Upload preview per vector:"}</p>
-                      <p>{`{`}</p>
-                      <p className="pl-3">{`id: "${pineconeFieldMapping.idPrefix || parsedFilename || "file"}_chunk_0",`}</p>
-                      <p className="pl-3">{`values: [0.123, -0.456, ...],`}</p>
-                      <p className="pl-3">{`metadata: {`}</p>
-                      <p className="pl-6">{`${pineconeFieldMapping.filenameField || "filename"}: "example.pdf",`}</p>
-                      <p className="pl-6">{`${pineconeFieldMapping.textField || "text"}: "chunk content..."`}</p>
-                      <p className="pl-3">{`}`}</p>
-                      <p>{`}`}</p>
-                      <p className="text-slate-500">{`// namespace: "${pineconeNamespace || "(default)"}"`}</p>
-                    </div>
+                {/* Collection Selection */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gunmetal">
+                      Select Collection
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => fetchChromaCollections()}
+                      disabled={isListingChromaCollections || !chromaDatabase}
+                      className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {isListingChromaCollections ? "Refreshing..." : "Refresh"}
+                    </button>
                   </div>
-                </details>
-              </div>
 
-              {/* Embeddings Requirement Check */}
-              {!hasEmbeddings && (
-                 <StatusMessage type="warning" label="Note:">
-                   You must generate embeddings in the Embeddings step above before uploading.
-                 </StatusMessage>
-              )}
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Upload Button */}
-                <button
-                  onClick={handleUpload}
-                  disabled={
-                    !pineconeIndexName || !hasEmbeddings || isUploading
-                  }
-                  className="flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                >
-                  {isUploading ? (
-                    <>
-                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <details
+                    open={showCreateChromaCollection}
+                    onToggle={(e) =>
+                      setShowCreateChromaCollection(
+                        (e.target as HTMLDetailsElement).open,
+                      )
+                    }
+                    className="group rounded-lg border border-silver-light overflow-hidden mb-4"
+                  >
+                    <summary className="cursor-pointer list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
+                      <svg
+                        className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 5l7 7-7 7"
+                        />
                       </svg>
-                      Uploading… {uploadProgress}%
+                      <span className="text-sm font-medium text-gunmetal">
+                        Create New Collection
+                      </span>
+                      <svg
+                        className="h-4 w-4 text-sandy ml-auto"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </summary>
+                    <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
+                      <input
+                        type="text"
+                        value={newChromaCollection}
+                        onChange={(e) => setNewChromaCollection(e.target.value)}
+                        placeholder="my_collection"
+                        className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
+                      />
+                      <p className="text-[11px] text-silver-dark">
+                        Name must be 3-512 chars, lowercase alphanumeric with
+                        dots, dashes, or underscores.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleCreateChromaCollection}
+                        disabled={
+                          !newChromaCollection.trim() ||
+                          creatingChromaCollection
+                        }
+                        className="w-full rounded-lg bg-sandy px-3 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      >
+                        {creatingChromaCollection
+                          ? "Creating…"
+                          : "Create Collection"}
+                      </button>
+                    </div>
+                  </details>
+
+                  {chromaCollections.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-silver p-4 text-center">
+                      <p className="text-xs text-silver-dark">
+                        No collections found — create one below.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {chromaCollections.map((name) => {
+                        const isSelected = chromaCollectionName === name;
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => setChromaCollectionName(name)}
+                            className={`
+                        w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
+                        ${
+                          isSelected
+                            ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
+                            : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
+                        }
+                      `}
+                          >
+                            <span
+                              className={`
+                          flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
+                          ${isSelected ? "border-sandy" : "border-silver"}
+                        `}
+                            >
+                              {isSelected && (
+                                <span className="h-1 w-1 rounded-full bg-sandy" />
+                              )}
+                            </span>
+                            <span
+                              className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}
+                            >
+                              {name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {!hasEmbeddings && (
+                  <StatusMessage type="warning" label="Note:">
+                    You must generate embeddings in the Embeddings step above
+                    before uploading.
+                  </StatusMessage>
+                )}
+
+                <button
+                  onClick={handleUploadToChroma}
+                  disabled={
+                    !chromaCollectionName ||
+                    !hasEmbeddings ||
+                    isUploadingChroma ||
+                    editedChunks.length === 0
+                  }
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                  {isUploadingChroma ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Uploading…
                     </>
                   ) : (
                     <>
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
                       </svg>
-                      Upload Chunks to Pinecone
+                      Upload Chunks to Chroma
                     </>
                   )}
                 </button>
 
-                {/* Script download */}
-                <ActionRow
-                  onGenerateScript={handleGenerateScript}
-                  scriptLabel="Generate Script"
-                  isGeneratingScript={generatingScript}
-                  scriptOnly={true}
-                />
-              </div>
-            </>
-          )}
-
-          {/* Status messages */}
-          {pineconeError && (
-            <StatusMessage type="error" label="Error:">
-              {pineconeError}
-            </StatusMessage>
-          )}
-          {pineconeSuccess && (
-            <StatusMessage type="success" label="Success:">
-              {pineconeSuccess}
-            </StatusMessage>
-          )}
-        </div>
-      )}
-
-      {selectedDb === "chroma" && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {([
-              { key: "local", label: "Local Chroma" },
-              { key: "cloud", label: "Chroma Cloud" },
-            ] as const).map((mode) => {
-              const selected = chromaMode === mode.key;
-              const isLocalDisabled = mode.key === "local" && !isLocal;
-              return (
-                <button
-                  key={mode.key}
-                  type="button"
-                  onClick={() => { if (!isLocalDisabled) setChromaMode(mode.key); }}
-                  disabled={isLocalDisabled}
-                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
-                    isLocalDisabled
-                      ? "opacity-40 cursor-not-allowed bg-card border-silver-light text-silver-dark grayscale"
-                      : selected
-                        ? "border-sandy bg-sandy/10 text-gunmetal cursor-pointer"
-                        : "border-silver-light bg-card text-gunmetal-light hover:border-sandy/50 cursor-pointer"
-                  }`}
-                  title={isLocalDisabled ? "Requires local setup — clone the repo to use local Chroma" : undefined}
-                >
-                  {mode.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {chromaMode === "local" && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gunmetal">
-                  Local Chroma URL
-                </label>
-                <button
-                  type="button"
-                  onClick={() => fetchChromaDatabases()}
-                  disabled={isListingChromaDatabases || !chromaLocalUrl.trim()}
-                  className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isListingChromaDatabases ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
-              <input
-                type="text"
-                value={chromaLocalUrl}
-                onChange={(e) => setChromaLocalUrl(e.target.value)}
-                placeholder="http://localhost:8002"
-                className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-              />
-              <div className="mt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowExamples((v) => !v)}
-                  className="text-[10px] text-sandy hover:underline cursor-pointer"
-                >
-                  {showExamples ? "Hide launch command" : "Show launch command"}
-                </button>
-                {showExamples && (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Docker Compose</p>
-                    <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                      docker compose up chroma -d
-                    </div>
-                    <p className="text-[9px] text-gunmetal-light font-medium uppercase tracking-wider">Standalone</p>
-                    <div className="p-2 bg-slate-900 rounded text-[10px] font-mono text-slate-300 break-all select-auto whitespace-pre-wrap">
-                      chroma run --host localhost --port 8002 --path ./backend/my_chroma_data
-                    </div>
-                  </div>
+                {chromaError && (
+                  <StatusMessage type="error" label="Error:">
+                    {chromaError}
+                  </StatusMessage>
                 )}
-              </div>
-            </div>
-          )}
+                {chromaSuccess && (
+                  <StatusMessage type="success" label="Success:">
+                    {chromaSuccess}
+                  </StatusMessage>
+                )}
 
-          {chromaMode === "cloud" && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gunmetal mb-1">Chroma API Key</label>
-                  <input
-                    type="password"
-                    value={chromaApiKey}
-                    onChange={(e) => setChromaApiKey(e.target.value)}
-                    placeholder="ck_..."
-                    className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gunmetal mb-1">Tenant ID</label>
-                  <input
-                    type="text"
-                    value={chromaTenant}
-                    onChange={(e) => setChromaTenant(e.target.value)}
-                    placeholder="tenant-id"
-                    className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                  />
-                  <p className="text-[10px] text-silver-dark mt-0.5">
-                    Required by Chroma Cloud to scope your data. Found in your Chroma Cloud dashboard.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {((chromaMode === "local" && chromaLocalUrl) || (chromaMode === "cloud" && chromaApiKey)) ? (
-          <>
-          {/* Database Selection & Creation */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gunmetal">
-                Select Database
-              </label>
-              <button
-                type="button"
-                onClick={() => fetchChromaDatabases()}
-                disabled={isListingChromaDatabases}
-                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
-              >
-                {isListingChromaDatabases ? "Refreshing..." : "Refresh"}
-              </button>
-            </div>
-
-            {/* Create Database — collapsible (local only; Chroma Cloud manages databases via dashboard) */}
-            {chromaMode === "local" ? (
-            <details
-              open={showCreateChromaDatabase}
-              onToggle={(e) => setShowCreateChromaDatabase((e.target as HTMLDetailsElement).open)}
-              className="group rounded-lg border border-silver-light overflow-hidden mb-4"
-            >
-              <summary className="cursor-pointer list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
-                <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="text-sm font-medium text-gunmetal">Create New Database</span>
-                <svg className="h-4 w-4 text-sandy ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              </summary>
-              <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
-                <input
-                  type="text"
-                  value={newChromaDatabase}
-                  onChange={(e) => setNewChromaDatabase(e.target.value)}
-                  placeholder="my_database"
-                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!newChromaDatabase.trim()) return;
-                    setCreatingChromaDatabase(true);
-                    setChromaError(null);
-                    setChromaSuccess(null);
-                    try {
-                      const base = chromaLocalUrl.trim() || "http://localhost:8000";
-                      const res = await fetch("/api/chroma/proxy", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          url: `${base.replace(/\/+$/, "")}/api/v2/tenants/default_tenant/databases`,
-                          method: "POST",
-                          body: { name: newChromaDatabase.trim() }
-                        })
-                      });
-                      const json = await res.json();
-                      if (!res.ok || !json.success) {
-                        throw new Error(json.message || "Failed to create database");
-                      }
-                      setChromaDatabase(newChromaDatabase.trim());
-                      setNewChromaDatabase("");
-                      setShowCreateChromaDatabase(false);
-                      setChromaSuccess(`Database "${newChromaDatabase.trim()}" created.`);
-                      await fetchChromaDatabases();
-                    } catch (err) {
-                      setChromaError(err instanceof Error ? err.message : String(err));
-                    } finally {
-                      setCreatingChromaDatabase(false);
-                    }
-                  }}
-                  disabled={!newChromaDatabase.trim() || creatingChromaDatabase}
-                  className="w-full rounded-lg bg-sandy px-3 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                >
-                  {creatingChromaDatabase ? "Creating…" : "Create Database"}
-                </button>
-              </div>
-            </details>
+                <p className="text-[11px] text-silver-dark">
+                  Upload uses upsert and will reuse existing chunk IDs when they
+                  already exist.
+                </p>
+              </>
             ) : (
-              <p className="text-[10px] text-silver-dark mb-4">
-                Chroma Cloud databases are managed via the{" "}
-                <a href="https://www.trychroma.com/login" target="_blank" rel="noopener noreferrer" className="text-sandy hover:underline">
-                  Chroma Cloud dashboard
-                </a>
-                . The API key does not have permission to create databases.
+              <p className="text-xs text-silver-dark">
+                {chromaMode === "local"
+                  ? "Enter a Local Chroma URL"
+                  : "Enter a Chroma API Key"}{" "}
+                to see available databases and collections.
               </p>
             )}
-
-            {chromaDatabases.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-silver p-4 text-center">
-                <p className="text-xs text-silver-dark">
-                  No databases found{chromaMode === "local" ? " — create one below." : "."}
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {chromaDatabases.map((dbName) => {
-                  const isSelected = chromaDatabase === dbName;
-                  return (
-                    <button
-                      key={dbName}
-                      type="button"
-                      onClick={() => {
-                        setChromaDatabase(dbName);
-                        // Reset collection when database changes
-                        setChromaCollectionName("");
-                        setChromaCollections([]);
-                      }}
-                      className={`
-                        w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
-                        ${isSelected
-                          ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                          : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
-                        }
-                      `}
-                    >
-                      <span
-                        className={`
-                          flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
-                          ${isSelected ? "border-sandy" : "border-silver"}
-                        `}
-                      >
-                        {isSelected && <span className="h-1 w-1 rounded-full bg-sandy" />}
-                      </span>
-                      <span className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}>
-                        {dbName}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
+        )}
 
-          {/* Collection Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gunmetal">
-                Select Collection
-              </label>
-              <button
-                type="button"
-                onClick={() => fetchChromaCollections()}
-                disabled={isListingChromaCollections || !chromaDatabase}
-                className="text-xs text-sandy hover:text-sandy-dark cursor-pointer disabled:opacity-50 flex items-center gap-1"
-              >
-                {isListingChromaCollections ? "Refreshing..." : "Refresh"}
-              </button>
-            </div>
+        {selectedDb === "mongodb" && <MongodbSection />}
 
-            <details
-              open={showCreateChromaCollection}
-              onToggle={(e) => setShowCreateChromaCollection((e.target as HTMLDetailsElement).open)}
-              className="group rounded-lg border border-silver-light overflow-hidden mb-4"
-            >
-              <summary className="cursor-pointer list-none flex items-center gap-2 bg-card px-4 py-3 hover:bg-sandy/4 transition-colors">
-                <svg className="h-4 w-4 text-sandy flex-shrink-0 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="text-sm font-medium text-gunmetal">Create New Collection</span>
-                <svg className="h-4 w-4 text-sandy ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              </summary>
-              <div className="border-t border-silver-light bg-gray-50 dark:bg-white/5 px-4 py-4 space-y-3">
-                <input
-                  type="text"
-                  value={newChromaCollection}
-                  onChange={(e) => setNewChromaCollection(e.target.value)}
-                  placeholder="my_collection"
-                  className="w-full rounded-lg border border-silver px-3 py-2 text-sm focus:ring-2 focus:ring-sandy/50 focus:border-sandy outline-none"
-                />
-                <p className="text-[11px] text-silver-dark">
-                  Name must be 3-512 chars, lowercase alphanumeric with dots, dashes, or underscores.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCreateChromaCollection}
-                  disabled={!newChromaCollection.trim() || creatingChromaCollection}
-                  className="w-full rounded-lg bg-sandy px-3 py-2.5 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                >
-                  {creatingChromaCollection ? "Creating…" : "Create Collection"}
-                </button>
-              </div>
-            </details>
-
-            {chromaCollections.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-silver p-4 text-center">
-                <p className="text-xs text-silver-dark">
-                  No collections found — create one below.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {chromaCollections.map((name) => {
-                  const isSelected = chromaCollectionName === name;
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      onClick={() => setChromaCollectionName(name)}
-                      className={`
-                        w-auto text-left rounded-lg border px-3 py-1.5 transition-all duration-150 cursor-pointer flex items-center gap-2
-                        ${isSelected
-                          ? "border-sandy bg-sandy/8 ring-2 ring-sandy/30"
-                          : "border-silver-light bg-card hover:border-sandy/50 hover:bg-sandy/4"
-                        }
-                      `}
-                    >
-                      <span
-                        className={`
-                          flex-shrink-0 h-3 w-3 rounded-full border-2 flex items-center justify-center transition-colors
-                          ${isSelected ? "border-sandy" : "border-silver"}
-                        `}
-                      >
-                        {isSelected && <span className="h-1 w-1 rounded-full bg-sandy" />}
-                      </span>
-                      <span className={`text-[11px] font-medium font-mono ${isSelected ? "text-gunmetal" : "text-gunmetal-light"}`}>
-                        {name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {!hasEmbeddings && (
-            <StatusMessage type="warning" label="Note:">
-              You must generate embeddings in the Embeddings step above before uploading.
-            </StatusMessage>
-          )}
-
-          <button
-            onClick={handleUploadToChroma}
-            disabled={!chromaCollectionName || !hasEmbeddings || isUploadingChroma || editedChunks.length === 0}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-sandy px-4 py-3 text-sm font-medium text-white hover:bg-sandy-light active:bg-sandy-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-          >
-            {isUploadingChroma ? (
-              <>
-                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Uploading…
-              </>
-            ) : (
-              <>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Upload Chunks to Chroma
-              </>
-            )}
-          </button>
-
-          {chromaError && (
-            <StatusMessage type="error" label="Error:">
-              {chromaError}
-            </StatusMessage>
-          )}
-          {chromaSuccess && (
-            <StatusMessage type="success" label="Success:">
-              {chromaSuccess}
-            </StatusMessage>
-          )}
-
-          <p className="text-[11px] text-silver-dark">
-            Upload uses upsert and will reuse existing chunk IDs when they already exist.
-          </p>
-          </>
-          ) : (
-            <p className="text-xs text-silver-dark">
-              {chromaMode === "local" ? "Enter a Local Chroma URL" : "Enter a Chroma API Key"} to see available databases and collections.
-            </p>
-          )}
-        </div>
-      )}
-
-      {selectedDb === "mongodb" && (
-        <MongodbSection />
-      )}
-
-      {selectedDb === "faiss" && (
-        <FaissSection />
-      )}
+        {selectedDb === "faiss" && <FaissSection />}
       </ConfigContainer>
     </div>
   );

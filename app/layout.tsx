@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ChunkCanvas",
-  description: "Document processing, chunking & vector DB pipeline builder",
+  description: "Document processing, chunking & vector DB",
 };
 
 export default function RootLayout({

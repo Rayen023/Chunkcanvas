@@ -1,9 +1,57 @@
-# Backend specific ignores
-.venv
-__pycache__
-*.pyc
+# Security - Environment Variables (ALL PATTERNS)
 .env
+.env*
+.env.local
 .env*.local
+*.env
+*.pem
+certificates/
+
+# Python Backend
+.venv
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.python-version
+
+# IDEs
 .git
 .github
 .vscode
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+htmlcov/
+
+# Logs
+*.log
+pip-log.txt
+
+# Data directories
+data/
+my_chroma_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# OS
+.DS_Store
+Thumbs.db

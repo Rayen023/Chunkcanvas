@@ -1,19 +1,20 @@
+name: chunkcanvas
+
 services:
-  frontend:
+  chunkcanvas-web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chunkcanvas-frontend
+    container_name: chunkcanvas-web
     ports:
       - "3000:3000"
     env_file:
       - .env.local
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3000
       - NEXT_PUBLIC_OLLAMA_URL=http://localhost:11434
       - NEXT_PUBLIC_VLLM_URL=http://localhost:8000
       - NEXT_PUBLIC_DOCLING_URL=http://localhost:8020
-      - NEXT_PUBLIC_CHROMA_URL=http://localhost:8002
+      - NEXT_PUBLIC_CHROMA_URL=http://localhost:8030
       - NEXT_PUBLIC_FAISS_URL=http://localhost:8010
 
     restart: unless-stopped
@@ -46,17 +47,13 @@ services:
       - "8020:8020"
     env_file:
       - .env.local
-    environment:
-      - VLLM_URL=http://host.docker.internal:8000/v1/chat/completions
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   chroma:
     image: chromadb/chroma:latest
     container_name: chunkcanvas-chroma
     ports:
-      - "8002:8000"
+      - "8030:8000"
     volumes:
       - ./backend/my_chroma_data:/data
     environment:
