@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "./components/sidebar/Sidebar";
@@ -16,8 +16,55 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChunkCanvas",
-  description: "Document processing, chunking & vector DB",
+  metadataBase: new URL("https://chunkcanvas.cc"),
+  title: {
+    default: "ChunkCanvas | Document Processing for RAG",
+    template: "%s | ChunkCanvas",
+  },
+  description:
+    "ChunkCanvas is an open-source document processing GUI that transforms raw files into structured, chunked data for vector databases.",
+  keywords: [
+    "RAG",
+    "Retrieval-Augmented Generation",
+    "Document Processing",
+    "LLM",
+    "Vector Database",
+    "Chunking",
+    "Pinecone",
+    "ChromaDB",
+    "FAISS",
+    "pdf parsing",
+    "OpenRouter",
+    "Ollama",
+    "vLLM",
+    "AI",
+  ],
+  authors: [{ name: "ChunkCanvas" }],
+  creator: "ChunkCanvas",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://chunkcanvas.cc",
+    title: "ChunkCanvas | Document Processing for RAG",
+    description:
+      "Transform raw files into structured, chunked data for vector databases. Support for PDFs, images, Excel, CSV, audio, and video.",
+    siteName: "ChunkCanvas",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ChunkCanvas | Document Processing for RAG",
+    description:
+      "Transform your documents into structured data for LLMs and Vector databases. Local and cloud AI models supported.",
+  },
+  icons: {
+    icon: "/icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F2A365",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
